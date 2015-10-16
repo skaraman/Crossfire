@@ -1,0 +1,6 @@
+public/*.bundle.js
+public/bundle.js
+*.log
+.DS_Store
+src/old.js
+src/framedata.js
