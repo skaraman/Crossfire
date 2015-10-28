@@ -1,5 +1,4 @@
 'use strict';
-// Famous dependencies
 var DOMElement = require('famous/dom-renderables/DOMElement');
 var FamousEngine = require('famous/core/FamousEngine');
 var Transitionable = require('famous/transitions/Transitionable');
@@ -12,50 +11,30 @@ var Box = require('famous/physics/bodies/Box');
 var Vec3 = require('famous/math/Vec3');
 var Quaternion = require('famous/math/Quaternion');
 var Collision = require('famous/physics/constraints/Collision');
-// Boilerplate code to make ymy life easier
 FamousEngine.init();
-// Initialize with a scene; then, add a 'node' to the scene root
 var theScene = FamousEngine.createScene();
 theScene.name = "theScene";
 document.theScene = theScene;
 var options = {};
-var world = new physics.PhysicsEngine(options);
+var world;
 var game = theScene.addChild();
 game.name = "game";
-world.game = game;
-game.world = world;
 var gameUI = game.addChild();
 gameUI.name = "gameUI";
 var gameSize = game.getSize();
-
 var gameEnemies;
-// listen for touches from mobile devices (the primary audience)
 document.addEventListener('touchmove', function(event) {
      event.preventDefault();
      game.onReceive(event.type, event);
 }, false);
-// listen for keypresses on the document
-// because why not, maybe it will be great
-// for debugging on PC or something
 document.addEventListener('keydown', function(event) {
     game.onReceive(event.type, event);
 }.bind(this));
-// listen for mouse movement from desktop
-// for development and debugging
 document.addEventListener('mousemove', function(event) {
     game.onReceive(event.type, event);
 });
-// sets the game Node to process the keydown listener from above
-// and fire an emit() to all children,
-// emit event is sent based on which button was pressed
 game.onReceive = function(event, payload) {
-    // since game.onReceive basically listens to all
-    // the above input commands, i can switch between
-    // them to handle the different cases
-    // then emit an event to all my game children
-    // since some children are listening to certain events
-    // via their own "onReceive" functions
-    switch(event){
+switch(event){
         case 'click':
             switch (payload.node.name) {
                 case "startButtonNode":
@@ -68,99 +47,39 @@ game.onReceive = function(event, payload) {
         break;
         case 'mousemove':
         case 'touchmove':
-            // the game should be started, i don't want the
-            // followAction() method to run in the event that
-            // the player touches the screen on the "start game" screen
-            // and doesn't touch the actual "start game" button
             if(game.started && game.started == true){
                 followAction();
             }
         break;
     }
 }
-// creating my 'character', in this case it's just a box
-var boxNode = gameUI.addChild();
-game.boxNode = boxNode;
-boxNode.name = "boxNode";
-boxNode.setSizeMode('absolute', 'absolute')
-    .setAbsoluteSize(40, 40)
-    .setAlign(0.5,0.5)
-    .setPosition(-20,-20)
-    .setOrigin(0.5, 0.5);
-boxNode.size = 80;
-// adding the actual dom-element to the node
-// it's what shows my sprite image on my node!
-var boxNodeElement = new DOMElement(boxNode);
-boxNodeElement.setProperty('background-color', 'blue')
-    .setProperty('z-index','1000');
-boxNode.addUIEvent('click');
-// position the Box to the boxNode
-var boxNodePosition = boxNode.getPosition();
-boxNode.box = new Box({
-    mass: 1,
-    size: [40,40,40],
-    position:new Vec3(boxNodePosition[0],boxNodePosition[1]) //bug?
-});
-// Box is attached to boxNode, but not the other way around
-// so i attach it
-boxNode.box.node = boxNode;
-world.addBody(boxNode.box);
-// need to add the below spinner as a physics interation
-// on the Box, not as the below basic animation on the node
-// this is because i want the physics engine to monitor the
-// corners of the spinning box, this lets us have collisions
-// on the spinning corners
 
-var spinner = boxNode.addComponent({
-    onUpdate: function(time) {
-        var currentPos = boxNode.box.getPosition();
-        boxNode.box.setPosition(currentPos[0],currentPos[1],time/1000);
-        boxNode.requestUpdateOnNextTick(spinner);
+createBoxNode();
+createStartButtonNode();
 
-    }
-});
-// Let the magic begin...
-boxNode.requestUpdate(spinner);
-
-// the box is idle before the game starts
-// this helps position the box at the start
-// of the game immediatly to the player's finger press
-// since i also want to prevent 'false warping'
-boxNode.idle = true;
-// the start game button
-// attach it to game so i can call it on gameOver()
-var startButtonNode = gameUI.addChild();
-startButtonNode.name = "startButtonNode";
-startButtonNode.setSizeMode('absolute','absolute')
-    .setAbsoluteSize(240,60)
-    .setAlign(0.5,0.8)
-    .setPosition(-120,-30);
-var startButtonElement = new DOMElement(startButtonNode);
-startButtonElement.setProperty('font-size','46px')
-    .setContent('Start Game');
-startButtonNode.addUIEvent('click');
-// add a start component to the start node
-// this will handle our main start function
-var startComponent = {
-    id: null,
-    node: null,
-    onMount: function (node) {
-        this.id = node.addComponent(this);
-        this.node = node;
-    },
-    onReceive: function (event, payload){
-        if(event == 'startButton')
-            this.node.requestUpdate(this.id);
-    },
-    onUpdate: function() {
-        game.started = true;
-        initGame();
-    }
-}
-startButtonNode.addComponent(startComponent);
 function initGame() {
-    gameUI.removeChild(startButtonNode);
-    // document.body.style.cursor = "none";
+    if(world) world = null;
+    world = new physics.PhysicsEngine(options);
+    world.game = game;
+    game.world = world;
+
+    world.addBody(game.boxNode.box);
+
+    var gameUIChildren = gameUI.getChildren();
+
+    for(var i=gameUIChildren.length;i--;){
+        if(gameUIChildren[i].name == "scoreNode"
+        || gameUIChildren[i].name == "startButtonNode"
+        || gameUIChildren[i].name == "gameOverNode"){
+            gameUI.removeChild(gameUIChildren[i]);
+        }
+    }
+    document.body.style.cursor = "none";
+
+    if(gameEnemies){
+        Dismount(gameEnemies);
+        gameEnemies = {};
+    }
     gameEnemies = game.addChild();
     gameEnemies.name = "gameEnemies";
     var createEnemiesComponent = {
@@ -207,27 +126,96 @@ function initGame() {
             this.node = node;
         },
         onReceive: function(event,payload) {
-            if(event == 'updateScore')
+            if(event == 'updateScore'){
+                this.node.deadNode = payload.deadNode;
                 this.node.requestUpdate(this.id);
+            }
         },
         onUpdate: function() {
-            updateScore();
+            updateScore(scoreNode,scoreNode.deadNode);
         }
     }
     scoreNode.addComponent(scoreComponent);
-
 }
+function createStartButtonNode() {
+    var startButtonNode = gameUI.addChild();
+    startButtonNode.name = "startButtonNode";
+    startButtonNode.setSizeMode('absolute','absolute')
+        .setAbsoluteSize(240,60)
+        .setAlign(0.5,0.8)
+        .setPosition(-120,-30);
+    var startButtonElement = new DOMElement(startButtonNode);
+    startButtonElement.setProperty('font-size','46px')
+        .setContent('Start Game');
+    startButtonNode.addUIEvent('click');
+    var startComponent = {
+        id: null,
+        node: null,
+        onMount: function (node) {
+            this.id = node.addComponent(this);
+            this.node = node;
+        },
+        onReceive: function (event, payload){
+            if(event == 'startButton')
+                this.node.requestUpdate(this.id);
+        },
+        onUpdate: function() {
+            game.started = true;
+            initGame();
+        }
+    }
+    startButtonNode.addComponent(startComponent);
+}
+function createBoxNode() {
+    var boxNode = gameUI.addChild();
+    game.boxNode = boxNode;
+    boxNode.name = "boxNode";
+    boxNode.setSizeMode('absolute', 'absolute')
+        .setAbsoluteSize(40, 40)
+        .setAlign(0.5,0.5)
+        .setPosition(-20,-20,1000)
+        .setOrigin(0.5, 0.5);
+    boxNode.size = 80;
+    var boxNodeElement = new DOMElement(boxNode);
+    boxNodeElement.setProperty('background-color', 'blue')
+        .setProperty('z-index','1000');
+    boxNode.addUIEvent('click');
+    var boxNodePosition = boxNode.getPosition();
+    boxNode.box = new Box({
+        mass: 1,
+        size: [40,40,40],
+        position:new Vec3(boxNodePosition[0],boxNodePosition[1])
+    });
+    boxNode.box.node = boxNode;
+    // need to add the below boxNodeComponent as a physics interation
+    // on the Box, not as the below basic animation on the node
+    // this is because i want the physics engine to monitor the
+    // corners of the spinning box, this lets us have collisions
+    // on the spinning corners
+
+    var boxNodeComponent = boxNode.addComponent({
+        onUpdate: function(time) {
+            // set boxNode.box to spin on it's z axis
+            var currentPos = boxNode.box.getPosition();
+            boxNode.box.setPosition(currentPos[0],currentPos[1],time/1000);
+            // set boxNode to update to .box position = move away from
+            // followAction()
+            boxNode.requestUpdateOnNextTick(boxNodeComponent);
+        }
+    });
+    // Let the magic begin...
+    boxNode.requestUpdate(boxNodeComponent);
+
+    boxNode.idle = true;
+}
+
 function addEnemy(speed){
-    // create an enemy at a random side with a random size,
-    //
     var newEnemy = gameEnemies.addChild();
     newEnemy.name = "newEnemy";
-    // choose a random size
     var sizes = [30,40,50,60];
     var size = sizes[Math.floor(Math.random()*sizes.length)];
     newEnemy.setSizeMode('absolute', 'absolute')
         .setAbsoluteSize(size, size);
-    // choose a random side
     var sidesOps = [1,2,3,4];
     var sideOp = sidesOps[Math.floor(Math.random()*sidesOps.length)];
     switch (sideOp) {
@@ -248,20 +236,18 @@ function addEnemy(speed){
             newEnemy.name = "top";
         break;
     }
-    // adding the actual dom-element to the node
-    // it's what shows my sprite image on my node!
     var newEnemyElement = new DOMElement(newEnemy);
     var colors = ['red','black']
     newEnemyElement.setProperty('background',colors[Math.floor(Math.random()*colors.length)])
         .setProperty('border-radius',"100%");
-    // the enemy component that updates the node position based on the
-    // sphere position
     var newEnemyComponent = {
         id: null,
         node: null,
         done: function(node){
             gameEnemies.removeChild(node);
+            if(node._components[3] != null)
             node.removeComponent(node._components[3]);
+            if(node._components[2] != null)
             node.removeComponent(node._components[2]);
         },
         onMount: function (node){
@@ -291,7 +277,7 @@ function addEnemy(speed){
     });
     newEnemy.sphere.node = newEnemy;
     world.addBody(newEnemy.sphere);
-    world.addConstraint(new Collision([boxNode.box,newEnemy.sphere],{restitution:0}));
+    world.addConstraint(new Collision([game.boxNode.box,newEnemy.sphere],{restitution:0}));
     newEnemy.addComponent(newEnemyComponent);
     switch (newEnemy.name) {
         case "left":
@@ -311,70 +297,54 @@ function addEnemy(speed){
     game.emit('animateEnemies',payload);
 }
 function addEnemyUtil(){
-    // get rid of the createEnemiesComponent since
-    // i don't need it anymore, addEnemyUtil will be my
-    // goto for updating enemy properties
-    // and collisionDetection() will be constantly
-    // scanning for collisions
     if(gameEnemies._components[3]){
         gameEnemies.removeComponent(gameEnemies._components[3]);
     }
-    ///**
     var timings_teir1 = [400,500];
     var timing = timings_teir1[Math.floor(Math.random()*timings_teir1.length)];
-    game.addEnemyTimeout = FamousEngine.getClock().setInterval(function(){
+
+    game.addEnemyInterval = FamousEngine.getClock().setInterval(function(){
         addEnemy(300)
     },timing);
-    //*/
-    //addEnemy(300);
-    // ^^
 }
 function followAction(){
-    // get the coordinates from the player's finger press
-    // this one also includes mouse (else) behavior
-    // for dev and debugging
-    // (touchmove was a bit of a pain to figure out, .touches UGH...)
     var newPosX, newPosY
     if(event.type == "touchmove"){
-        newPosX = event.touches[0].clientX - (boxNode.size/2);
-        newPosY = event.touches[0].clientY - (boxNode.size/2);
+        newPosX = event.touches[0].clientX - (game.boxNode.size/2);
+        newPosY = event.touches[0].clientY - (game.boxNode.size/2);
     }else {
-        newPosX = event.clientX - (boxNode.size/2);
-        newPosY = event.clientY - (boxNode.size/2);
+        newPosX = event.clientX - (game.boxNode.size/2);
+        newPosY = event.clientY - (game.boxNode.size/2);
     }
-    var currentPos = boxNode.getPosition();
-    // box is idle when the game hasn't started yet,
-    // so i dont want to punish the player for "warping"
-    if(boxNode.idle == true){
-        boxNode.setAlign(0,0,0);
-        boxNode.setPosition(newPosX,newPosY);
-        boxNode.box.setPosition(newPosX,newPosY,0);
-        boxNode.idle = false;
+    var currentPos = game.boxNode.getPosition();
+    if(game.boxNode.idle == true){
+        game.boxNode.setAlign(0,0,0);
+        game.boxNode.setPosition(newPosX,newPosY);
+        game.boxNode.box.setPosition(newPosX,newPosY,0);
+        game.boxNode.idle = false;
     } else {
-        // box isn't idle so i'm going to check how far
-        // the next movement coordinates are from the previous ones
         var xDiff, yDiff;
         xDiff = Math.abs(currentPos[0] - newPosX);
         yDiff = Math.abs(currentPos[1] - newPosY);
-        // whoa! this is more than 200 pixels x or y, they must be using
-        // two fingers and releasing one in an attempt to 'warp', i don't
-        // take kindly to 'false warpers', so i'm going to set a duration
-        // for their warp period
-        // i need to figure out the bugs here
         if(xDiff > 200 || yDiff > 200 ){
-            boxNode.position = new Position(boxNode);
-            boxNode.position.set(newPosX,newPosY,10000,{duration:1000});
-            boxNode.position.onUpdate;
-        }else{
-            boxNode.setPosition(newPosX,newPosY);
-            boxNode.box.setPosition(newPosX,newPosY,0);
+            game.boxNode.position = new Position(game.boxNode);
+            game.boxNode.position.set(newPosX,newPosY,10000,{duration:1000});
+            game.boxNode.position.onUpdate;
+        }else if((game.boxNode.position && !game.boxNode.position.isActive())||!game.boxNode.position){
+            game.boxNode.setPosition(newPosX,newPosY);
+            game.boxNode.box.setPosition(newPosX,newPosY,0);
         }
     }
 }
-function updateScore(){
-    var score = gameUI.getChildren();
+function updateScore(score,node){
+    var numScore = parseInt(score._components[3]._content);
+    var newScore = numScore + 10;
+    game.score = newScore;
+    score._components[3].setContent(newScore);
+    node._components[4].done(node);
 }
 function gameOver(){
+    FamousEngine.getClock().clearTimer(game.addEnemyInterval);
     var gC = gameUI.getChildren()
     var score = gC[1];
     var gameOverNode = gameUI.addChild();
@@ -385,48 +355,29 @@ function gameOver(){
         .setPosition(-200,-50);
     var gameOverElement = new DOMElement(gameOverNode);
     gameOverElement.setProperty('font-size','64px')
+        .setProperty('text-align','center')
         .setContent('Game Over');
 
-    /** i don't need this right?
-     var gameOverComponent = {
-        id: null,
-        node: null,
-        onMount: function (node) {
-            this.id = node.addComponent(this);
-            this.node = node;
-        },
-        onReceive: function (event, payload){
-            if(event == 'gameOver')
-                this.node.requestUpdate(this.id);
-        },
-        onUpdate: function() {
-            game.started = true;
-            initGame();
-        }
-    }
-    gameOverNode.addComponent(gameOverComponent);
-    */
-    var startButtonNode = gameUI.addChild();
-    startButtonNode.name = "startButtonNode";
-    startButtonNode.setSizeMode('absolute','absolute')
-        .setAbsoluteSize(240,60)
-        .setAlign(0.5,0.8)
-        .setPosition(-120,-30);
-    var startButtonElement = new DOMElement(startButtonNode);
-    startButtonElement.setProperty('font-size','46px')
-        .setContent('Start Game');
-    startButtonNode.addUIEvent('click');
+    createStartButtonNode();
 
     score.setAlign(0.5,0.3,0);
     score._components[3].setProperty('opacity','1.0');
+    game.started = false;
+    boxNode.setAlign(0.5,0.7)
+        .setPosition(-20,-20,1000);
+    boxNode.idle = true;
+    document.body.style.cursor = "auto";
 
+
+    var allEnemies = gameEnemies.getChildren();
+    while(allEnemies.length){
+        allEnemies[0].removeComponent(allEnemies[0]._components[3]);
+        Dismount(allEnemies[0]);
+        //gameEnemies.removeChild(allEnemies[0]);
+    }
+    gameEnemies.requestUpdate(gameEnemies._components[3].id);
 }
-function resetBrokenBody(body){
-    // is it Famous? is it me?
-    // either way, the box and sphere get broken when colliding from a
-    // fast flick! i get NaN in each of these properties!
-    // luckily, the box is simple enough, i can reset it and just get rid
-    // of the sphere... but why this happen Famous?!
+function resetBody(body){
     body.angularMomentum = new Vec3(0,0,0);
     body.angularVelocity = new Vec3(0,0,0);
     body.momentum = new Vec3(0,0,0);
@@ -434,11 +385,6 @@ function resetBrokenBody(body){
     body.velocity = new Vec3(0,0,0);
 }
 function collisionDetection(){
-    // this took a while to figure out, but it's basically the game updater
-    // through the onUpdate sheme here i scan for collisions, fix broken ones,
-    // reset the box from its collision velocities, check which enemy was hit,
-    // call the correct method, update the PE (world), and call this updater again
-    // THE CIRCLE OF LIFE and it keeps on going...
     var gameEnemies = game.getChildren()[1];
     var collisionComponent = {
         id:null,
@@ -448,57 +394,59 @@ function collisionDetection(){
             this.node = node;
         },
         onUpdate: function(time) {
-            // console.log('collision detection scanning',time);
-            // when the collision breaks, velocity of the box is garanteed to
-            // be NaN, so throw that sucker into a quick reset and proceed with
-            // life, more info in resetBrokenBody comments
-            var boxVelocity = boxNode.box.getVelocity();
-            /*if(isNaN(boxVelocity.x)){
-                resetBrokenBody(boxNode.box);
-            }*/
-            // everytime i made a collision, i added it to the PE (world), so
-            // now at a "game update" i'll scan each collision to see if it has
-            // collision data, which means a collision occured,
-            // i don't care about the data, just that it's there
             for(var i = 0; i < world.constraints.length;i++){
                 if(world.constraints[i]
                 && world.constraints[i].contactManifoldTable.collisionMatrix.hasOwnProperty(0)
                 && !world.constraints[i].detected){
                     world.constraints[i].detected = true;
-                    // box get's bounced around too, probably possible to
-                    // remove this in box properties but this reset works fine
-                    // for me, for now
-                    resetBrokenBody(boxNode.box);
-                    // check the type of enemy i hit, simply by looking
-                    // at it's div's bg color, and call it's update methods
-                    var enemyType = world.constraints[i].targets[1].node._components[3]._styles.background;
-                    if(enemyType == 'black'){
-                        // destroy the node & update score
-                        console.log('hit black!');
-                        updateScore();
-                    }else if(enemyType == 'red'){
-                        // destroy all nodes, reset box, move score,
-                        // and game over
-                        console.log('hit red!');
-                        gameOver();
+                    resetBody(game.boxNode.box);
+                    if(world.constraints[i].targets[1].node._components[3]){
+                        var enemyType = world.constraints[i].targets[1].node._components[3]._styles.background;
+                        if(enemyType == 'black'){
+                            console.log('hit black!');
+                            var payload = {};
+                            payload.deadNode = world.constraints[i].targets[1].node;
+                            game.emit('updateScore',payload)
+                        }else if(enemyType == 'red'){
+                            console.log('hit red!');
+                            gameOver();
+                        }
+                        world.removeConstraint(world.constraints[i]);
+                    }else{
+                        console.log('fizzle');
                     }
-                    world.removeConstraint(world.constraints[i]);
                 }else if(world.constraints[i]
                 && world.constraints[i].contactManifoldTable.collisionMatrix.hasOwnProperty(0)
                 && world.constraints[i].detected){
-                    // i need to remove collisions already detected otherwise
-                    // they create a problem since their targets are probably
-                    // removed already
                     world.removeConstraint(world.constraints[i]);
                 }
             }
-            // the magic that is time + reproduction
+            console.log(time);
             world.update(time);
             this.node.requestUpdateOnNextTick(this.id);
         }
     };
-    // the meteor that brings the life stuff
     gameEnemies.addComponent(collisionComponent);
-    // the spark that made it happen
-    gameEnemies.requestUpdate(collisionComponent.id);
+    gameEnemies.requestUpdate(gameEnemies._components[3].id);
+}
+
+var Dismount = function(node) {
+    var aNodes = [];
+    if ( !(node instanceof Node) )
+        throw "node not a Famous#Node";
+
+    var f = function(current) {
+        aNodes.push(current);
+        var aChildren = current.getChildren();
+        for ( var i in aChildren )
+            f(aChildren[i]);
+    };
+
+    f(node);
+
+    while ( aNodes.length ) {
+        var x = aNodes.pop();
+        if ( x.isMounted())
+            x.dismount();
+    }
 }
