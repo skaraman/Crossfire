@@ -554,12 +554,26 @@ function collisionDetection(){
     var collisionComponent = {
         id:null,
         node:null,
+        counter:0,
+        counterBefore:0,
+        dateBefore: null,
         onMount: function(node){
             this.id = node.addComponent(this);
             this.node = node;
         },
         onUpdate: function(time) {
+          this.counter++;
+          var difference = Date.now() - this.dateBefore;
+          var countDelta = this.counter-this.counterBefore;
+          if(difference > 100) {
+            console.log('counter: ', this.counter, ' countDelta ', countDelta, ' diff: ', difference);
+            console.log('POOP', 'counter: ' + countDelta/(difference/100) );
+            this.counterBefore = this.counter;
+            this.dateBefore = Date.now();
+          }
+
             for(var i = 0; i < world.constraints.length;i++){
+
                 if(world.constraints[i]
                 && world.constraints[i].contactManifoldTable.collisionMatrix.hasOwnProperty(0)
                 && !world.constraints[i].detected){
