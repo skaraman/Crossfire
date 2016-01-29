@@ -370,12 +370,12 @@ function addEnemy(speed, timing){
         id: null,
         node: null,
         done: function(node){
-            console.log('newEnemyComponent Done ran')
-            gameEnemies.removeChild(node);
-            if(node._components[3] != null)
-            node.removeComponent(node._components[3]);
-            if(node._components[2] != null)
-            node.removeComponent(node._components[2]);
+            console.log('newEnemyComponent '+ node._id +' Done ran')
+            /*if(node.newEnemyComponent != null)
+                node.removeComponent(node.newEnemyComponent);
+            if(node.DOMElement != null)*/
+            Dismount(node);
+            //gameEnemies.removeChild(node);
         },
         onMount: function (node){
             this.id = node.addComponent(this);
@@ -388,13 +388,13 @@ function addEnemy(speed, timing){
         },
         onUpdate: function(time){
             var spherePosition = this.node.sphere.getPosition();
-            /*if(Math.abs(spherePosition.x) > gameSize[0] || Math.abs(spherePosition.y) > gameSize[1]){
+            if(Math.abs(spherePosition.x) > gameSize[0] || Math.abs(spherePosition.y) > gameSize[1]){
                 if(this.node._id != null)
                     this.done(this.node);
-            }else{*/
+            }else{
                 this.node.setPosition(spherePosition.x,spherePosition.y);
                 this.node.requestUpdateOnNextTick(this.id);
-            //}
+            }
         }
     };
     var newEnemyPosition = newEnemy.getPosition();
@@ -504,6 +504,17 @@ function updateScore(score,node){
     }
 }
 function gameOver(){
+
+    var allEnemies = gameEnemies.getChildren();
+    while(allEnemies.length){
+        if(allEnemies[0]==null){
+            allEnemies.splice(0,1)
+            continue;
+        }
+        allEnemies[0].newEnemyComponent.done(allEnemies[0]);
+    }
+    gameEnemies.requestUpdate(gameEnemies._components[3].id);
+
     game.over = true;
     var gC = gameUI.getChildren()
     var score = gC[1];
@@ -529,16 +540,7 @@ function gameOver(){
     document.body.style.cursor = "auto";
 
 
-    var allEnemies = gameEnemies.getChildren();
-    while(allEnemies.length){
-        if(allEnemies[0]==null){
-            allEnemies.splice(0,1)
-            continue;
-        }
-        allEnemies[0].removeComponent(allEnemies[0].DOMElement);
-        Dismount(allEnemies[0]);
-    }
-    gameEnemies.requestUpdate(gameEnemies._components[3].id);
+
 }
 function resetBody(body){
     body.angularMomentum = new Vec3(0,0,0);
