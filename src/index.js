@@ -102,7 +102,9 @@ function initGame() {
         gameEnemies = {};
     }
     gameEnemies = game.addChild();
+    game.gameEnemies = gameEnemies;
     gameEnemies.name = "gameEnemies";
+    gameEnemies.constraintIterator = 0;
     var createEnemiesComponent = {
         id: null,
         node: null,
@@ -371,11 +373,9 @@ function addEnemy(speed, timing){
         node: null,
         done: function(node){
             console.log('newEnemyComponent '+ node._id +' Done ran')
-            /*if(node.newEnemyComponent != null)
-                node.removeComponent(node.newEnemyComponent);
-            if(node.DOMElement != null)*/
+            game.world.remove(node.collision);
+            game.world.remove(node.sphere);
             Dismount(node);
-            //gameEnemies.removeChild(node);
         },
         onMount: function (node){
             this.id = node.addComponent(this);
@@ -406,6 +406,8 @@ function addEnemy(speed, timing){
     newEnemy.sphere.node = newEnemy;
     world.addBody(newEnemy.sphere);
     world.addConstraint(new Collision([game.boxNode.box,newEnemy.sphere],{restitution:0}));
+    newEnemy.collision = world.constraints[world.constraints.length-1];
+    gameEnemies.constraintIterator++;
     newEnemy.addComponent(newEnemy.newEnemyComponent);
     switch (newEnemy.name) {
         case "left":
@@ -550,7 +552,7 @@ function resetBody(body){
     body.velocity = new Vec3(0,0,0);
 }
 function collisionDetection(){
-    var gameEnemies = game.getChildren()[1];
+    var gameEnemies = game.gameEnemies;
     var collisionComponent = {
         id:null,
         node:null,
@@ -576,14 +578,13 @@ function collisionDetection(){
                             console.log('hit red!');
                             gameOver();
                         }
-                        world.removeConstraint(world.constraints[i]);
-                    }else{
-                        console.log('fizzle');
+                        if(world.constraints[i] != null)
+                            world.removeConstraint(world.constraints[i]);
                     }
                 }else if(world.constraints[i]
                 && world.constraints[i].contactManifoldTable.collisionMatrix.hasOwnProperty(0)
-                && world.constraints[i].detected){
-                    world.removeConstraint(world.constraints[i]);
+                && world.constraints[i].detected && world.constraints[i] != null){
+                        world.removeConstraint(world.constraints[i]);
                 }
             }
             world.update(time);
