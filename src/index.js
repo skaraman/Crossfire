@@ -73,19 +73,15 @@ game.onReceive = function(event, payload) {
         break;
     }
 }
-
 createBoxNode();
 createStartButtonNode();
-
 function initGame() {
     if(world) world = null;
     world = new physics.PhysicsEngine(options);
     world.game = game;
     game.world = world;
     game.over = false;
-
     var gameUIChildren = gameUI.getChildren();
-
     for(var i=gameUIChildren.length;i--;){
         if(gameUIChildren[i] != null){
             if(gameUIChildren[i].name == "scoreNode"
@@ -96,7 +92,6 @@ function initGame() {
         }
     }
     document.body.style.cursor = "none";
-
     if(gameEnemies){
         Dismount(gameEnemies);
         gameEnemies = {};
@@ -105,6 +100,7 @@ function initGame() {
     game.gameEnemies = gameEnemies;
     gameEnemies.name = "gameEnemies";
     gameEnemies.constraintIterator = 0;
+    gameEnemies.iterator = 0;
     var createEnemiesComponent = {
         id: null,
         node: null,
@@ -175,6 +171,7 @@ function createStartButtonNode() {
     var startComponent = {
         id: null,
         node: null,
+        gameOver: arguments[0],
         onMount: function (node) {
             this.id = node.addComponent(this);
             this.node = node;
@@ -184,8 +181,12 @@ function createStartButtonNode() {
                 this.node.requestUpdate(this.id);
         },
         onUpdate: function() {
-            game.started = true;
-            initGame();
+            if(this.gameOver == true){
+                location.reload();
+            }else{
+                game.started = true;
+                initGame();
+            }
         }
     }
     startButtonNode.addComponent(startComponent);
@@ -205,18 +206,9 @@ function createBoxNode() {
     boxNode.DOMElement = new DOMElement(boxNode);
     boxNode.DOMElement.setProperty('background-image', 'url(./assets/grid.png)')
         .setProperty('background-size','1100% 600%')
-        .setProperty('z-index','1000')
-        .setContent('Click Me');
-
+        .setProperty('z-index','1000');
     boxNode.addUIEvent('click');
     var boxNodePosition = boxNode.getPosition();
-
-    // need to add the below boxNodeComponent as a physics interation
-    // on the Box, not as the below basic animation on the node
-    // this is because i want the physics engine to monitor the
-    // corners of the spinning box, this lets us have collisions
-    // on the spinning corners
-
     var boxNodeComponent = boxNode.addComponent({
         id:null,
         node:null,
@@ -237,7 +229,6 @@ function createBoxNode() {
             if(game.started == true){
                 boxNode.setAlign(0,0)
             }
-            // set boxNode.box to spin on it's z axis
             var currentPos = boxNode.box.getPosition();
             boxNode.setPosition(currentPos.x,currentPos.y,10000);
             boxNode.setRotation(0,0,-time/1000)
@@ -247,13 +238,11 @@ function createBoxNode() {
     addAnimationComponent(boxNode);
     boxNode.requestUpdate(boxNodeComponent);
 }
-
 function addAnimationComponent(char){
     var myComponent = {
         id: null,
         node: null,
         done: function(node) {
-            console.log("addAnimationComponent Done ran")
             if( typeof(node.framedata.active) == "null"){
                 node
             }
@@ -336,10 +325,10 @@ function addAnimationComponent(char){
     };
     char.addComponent(myComponent);
 }
-
 function addEnemy(speed, timing){
     var newEnemy = gameEnemies.addChild();
-    newEnemy.name = "newEnemy";
+    newEnemy.name = "";
+    newEnemy.num = gameEnemies.iterator++;
     var sizes = [30,40,50,60];
     var size = sizes[Math.floor(Math.random()*sizes.length)];
     newEnemy.setSizeMode('absolute', 'absolute')
@@ -372,10 +361,17 @@ function addEnemy(speed, timing){
         id: null,
         node: null,
         done: function(node){
-            console.log('newEnemyComponent '+ node._id +' Done ran')
+            console.log("DONE running for ","collision " + node.collision._ID, node.num + " enemy number");
             game.world.remove(node.collision);
             game.world.remove(node.sphere);
             Dismount(node);
+            for(var i=0;i<FamousEngine._updateQueue.length;i++){
+                if(FamousEngine._updateQueue[i] == node){
+                    FamousEngine._updateQueue.splice(i,1);
+                    i--;
+                    continue;
+                }
+            }
         },
         onMount: function (node){
             this.id = node.addComponent(this);
@@ -405,8 +401,9 @@ function addEnemy(speed, timing){
     });
     newEnemy.sphere.node = newEnemy;
     world.addBody(newEnemy.sphere);
-    world.addConstraint(new Collision([game.boxNode.box,newEnemy.sphere],{restitution:0}));
-    newEnemy.collision = world.constraints[world.constraints.length-1];
+    newEnemy.collision = world.addConstraint(
+        new Collision([game.boxNode.box,newEnemy.sphere],{restitution:0})
+    );
     gameEnemies.constraintIterator++;
     newEnemy.addComponent(newEnemy.newEnemyComponent);
     switch (newEnemy.name) {
@@ -501,12 +498,9 @@ function updateScore(score,node){
     var newScore = numScore + node.getSize()[0];
     game.score = newScore;
     score.DOMElement.setContent(newScore);
-    if(node._id != null){
-        node.newEnemyComponent.done(node);
-    }
+    node.newEnemyComponent.done(node);
 }
 function gameOver(){
-
     var allEnemies = gameEnemies.getChildren();
     while(allEnemies.length){
         if(allEnemies[0]==null){
@@ -516,7 +510,6 @@ function gameOver(){
         allEnemies[0].newEnemyComponent.done(allEnemies[0]);
     }
     gameEnemies.requestUpdate(gameEnemies._components[3].id);
-
     game.over = true;
     var gC = gameUI.getChildren()
     var score = gC[1];
@@ -530,9 +523,7 @@ function gameOver(){
     gameOverNode.DOMElement.setProperty('font-size','64px')
         .setProperty('text-align','center')
         .setContent('Game Over');
-
-    createStartButtonNode();
-
+    createStartButtonNode(true);
     score.setAlign(0.5,0.3,0);
     score.DOMElement.setProperty('opacity','1.0');
     game.started = false;
@@ -540,9 +531,6 @@ function gameOver(){
         .setPosition(-20,-20,1000);
     game.boxNode.idle = true;
     document.body.style.cursor = "auto";
-
-
-
 }
 function resetBody(body){
     body.angularMomentum = new Vec3(0,0,0);
@@ -556,26 +544,12 @@ function collisionDetection(){
     var collisionComponent = {
         id:null,
         node:null,
-        counter:0,
-        counterBefore:0,
-        dateBefore: null,
         onMount: function(node){
             this.id = node.addComponent(this);
             this.node = node;
         },
         onUpdate: function(time) {
-          this.counter++;
-          var difference = Date.now() - this.dateBefore;
-          var countDelta = this.counter-this.counterBefore;
-          if(difference > 100) {
-            console.log('counter: ', this.counter, ' countDelta ', countDelta, ' diff: ', difference);
-            console.log('POOP', 'counter: ' + countDelta/(difference/100) );
-            this.counterBefore = this.counter;
-            this.dateBefore = Date.now();
-          }
-
             for(var i = 0; i < world.constraints.length;i++){
-
                 if(world.constraints[i]
                 && world.constraints[i].contactManifoldTable.collisionMatrix.hasOwnProperty(0)
                 && !world.constraints[i].detected){
@@ -584,21 +558,13 @@ function collisionDetection(){
                     if(world.constraints[i].targets[1].node.DOMElement){
                         var enemyType = world.constraints[i].targets[1].node.DOMElement._styles.background;
                         if(enemyType == 'black'){
-                            console.log('hit black!');
                             var payload = {};
                             payload.deadNode = world.constraints[i].targets[1].node;
                             game.emit('updateScore',payload)
                         }else if(enemyType == 'red'){
-                            console.log('hit red!');
                             gameOver();
                         }
-                        if(world.constraints[i] != null)
-                            world.removeConstraint(world.constraints[i]);
                     }
-                }else if(world.constraints[i]
-                && world.constraints[i].contactManifoldTable.collisionMatrix.hasOwnProperty(0)
-                && world.constraints[i].detected && world.constraints[i] != null){
-                        world.removeConstraint(world.constraints[i]);
                 }
             }
             world.update(time);
