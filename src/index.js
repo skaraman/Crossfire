@@ -81,6 +81,8 @@ function initGame() {
     world.game = game;
     game.world = world;
     game.over = false;
+    game.speed_reducer = 5;
+    game.teir_reducer = 1;
     var gameUIChildren = gameUI.getChildren();
     for(var i=gameUIChildren.length;i--;){
         if(gameUIChildren[i] != null){
@@ -101,9 +103,11 @@ function initGame() {
     gameEnemies.name = "gameEnemies";
     gameEnemies.constraintIterator = 0;
     gameEnemies.iterator = 0;
-    var createEnemiesComponent = {
+    game.lives = 1;
+    gameEnemies.createEnemiesComponent = {
         id: null,
         node: null,
+        active: false,
         onMount: function(node){
             this.id = node.addComponent(this);
             this.node = node;
@@ -113,12 +117,15 @@ function initGame() {
                 this.node.requestUpdate(this.id);
         },
         onUpdate: function() {
-            addEnemyUtil();
-            collisionDetection();
+            if(this.active != true){
+                addEnemyUtil();
+                collisionDetection();
+                this.active = true;
+            }
         }
     };
-    gameEnemies.addComponent(createEnemiesComponent);
-    gameEnemies.requestUpdate(gameEnemies._components[2].id);
+    gameEnemies.addComponent(gameEnemies.createEnemiesComponent);
+    gameEnemies.requestUpdate(gameEnemies.createEnemiesComponent.id);
     var payload={}, emitted = false;
     if(emitted == false ){
         game.emit("createEnemies",payload);
@@ -144,18 +151,38 @@ function initGame() {
             this.id = node.addComponent(this);
             this.node = node;
         },
-        onReceive: function(event,payload) {
+        onReceive: function(event,payload){
             if(event == 'updateScore'){
                 this.node.deadNode = payload.deadNode;
                 this.node.requestUpdate(this.id);
             }
         },
-        onUpdate: function() {
+        onUpdate: function(){
             updateScore(scoreNode,scoreNode.deadNode);
         }
     }
     scoreNode.addComponent(scoreComponent);
     resetBody(game.boxNode.box);
+    game.gameLivesNode = gameUI.addChild();
+    game.gameLivesNode.gameLivesComponent = {
+        id:null,
+        node:null,
+        life:null,
+        onMount: function(node){
+            this.id = node.addComponent(this);
+            this.node = node;
+        },
+        onReceive: function(event,payload){
+            if(event == 'manageLives'){
+                this.life = payload.life;
+                this.node.requestUpdate(this.id);
+            }
+        },
+        onUpdate: function(time){
+            manageLives(this,this.life);
+        },
+    }
+    game.gameLivesNode.addComponent(game.gameLivesNode.gameLivesComponent);
 }
 function createStartButtonNode() {
     var startButtonNode = gameUI.addChild();
@@ -337,31 +364,53 @@ function addEnemy(speed, timing){
     var sideOp = sidesOps[Math.floor(Math.random()*sidesOps.length)];
     switch (sideOp) {
         case 1:
-            newEnemy.setPosition(gameSize[0],Math.round(Math.random() * gameSize[1]));
+            newEnemy.setPosition(gameSize[0],Math.round(Math.random() * gameSize[1]),2);
             newEnemy.name = "right";
         break;
         case 2:
-            newEnemy.setPosition(-size,Math.round(Math.random() * gameSize[1]));
+            newEnemy.setPosition(-size,Math.round(Math.random() * gameSize[1]),2);
             newEnemy.name = "left";
         break;
         case 3:
-            newEnemy.setPosition(Math.round(Math.random() * gameSize[0]),gameSize[1]);
+            newEnemy.setPosition(Math.round(Math.random() * gameSize[0]),gameSize[1],2);
             newEnemy.name = "bottom";
         break;
         case 4:
-            newEnemy.setPosition(Math.round(Math.random() * gameSize[0]),-size);
+            newEnemy.setPosition(Math.round(Math.random() * gameSize[0]),-size,2);
             newEnemy.name = "top";
         break;
     }
     newEnemy.DOMElement = new DOMElement(newEnemy);
-    var colors = ['red','black']
-    newEnemy.DOMElement.setProperty('background',colors[Math.floor(Math.random()*colors.length)])
+    var colors = []
+    if(game.score < 699){
+        colors = ['red','black','red','black','red','black','red','black'];
+    }else{
+        colors = ['red','black','blue','grey','green','yellow','orange','purple'];
+    }
+    var color = colors[0];
+    var ran = Math.random();
+    var x = Math.floor(ran*100);
+    if (x > 47 && x < 94) {
+        color=colors[1];
+    }else if (x == 95){
+        color=colors[2];
+    }else if (x == 96) {
+        color=colors[3];
+    }else if (x == 97){
+        color=colors[4];
+    }else if (x == 98){
+        color=colors[5];
+    }else if (x == 99){
+        color=colors[6];
+    }else if (x == 100){
+        color=colors[7];
+    }
+    newEnemy.DOMElement.setProperty('background',color)//s[Math.floor(Math.random()*colors.length)])
         .setProperty('border-radius',"100%");
     newEnemy.newEnemyComponent = {
         id: null,
         node: null,
         done: function(node){
-            console.log("DONE running for ","collision " + node.collision._ID, node.num + " enemy number");
             game.world.remove(node.collision);
             game.world.remove(node.sphere);
             Dismount(node);
@@ -384,6 +433,9 @@ function addEnemy(speed, timing){
         },
         onUpdate: function(time){
             var spherePosition = this.node.sphere.getPosition();
+            if(spherePosition.x == NaN || spherePosition.y == NaN || spherePosition.z == NaN){
+                this;
+            }
             if(Math.abs(spherePosition.x) > gameSize[0] || Math.abs(spherePosition.y) > gameSize[1]){
                 if(this.node._id != null)
                     this.done(this.node);
@@ -406,62 +458,96 @@ function addEnemy(speed, timing){
     );
     gameEnemies.constraintIterator++;
     newEnemy.addComponent(newEnemy.newEnemyComponent);
+    var diag = Math.random() < 0.5 ? true : false;
     switch (newEnemy.name) {
         case "left":
-            newEnemy.sphere.setVelocity(speed,0);
+            if(diag == true){
+                if(newEnemyPosition[1]> (gameSize[1]/2)){
+                    newEnemy.sphere.setVelocity(speed,-speed);
+                }
+                else{
+                    newEnemy.sphere.setVelocity(speed,speed);
+                }
+            }
+            else{
+                newEnemy.sphere.setVelocity(speed,0);
+            }
         break;
         case "right":
-            newEnemy.sphere.setVelocity(-speed,0);
+            if(diag == true){
+                if(newEnemyPosition[1]> (gameSize[1]/2)){
+                    newEnemy.sphere.setVelocity(-speed,-speed);
+                }
+                else{
+                    newEnemy.sphere.setVelocity(-speed,speed);
+                }
+            }
+            else{
+                newEnemy.sphere.setVelocity(-speed,0);
+            }
         break;
         case "top":
-            newEnemy.sphere.setVelocity(0,speed);
+            if(diag == true){
+                if(newEnemyPosition[0]> (gameSize[0]/2)){
+                    newEnemy.sphere.setVelocity(-speed,speed);
+                }
+                else{
+                    newEnemy.sphere.setVelocity(speed,speed)
+                }
+            }
+            else{
+                newEnemy.sphere.setVelocity(0,speed);
+            }
         break;
         case "bottom":
-            newEnemy.sphere.setVelocity(0,-speed);
+            if(diag == true){
+                if(newEnemyPosition[0]> (gameSize[0]/2)){
+                    newEnemy.sphere.setVelocity(-speed,-speed);
+                }
+                else {
+                    newEnemy.sphere.setVelocity(speed,-speed);
+                }
+            }
+            else{
+                newEnemy.sphere.setVelocity(0,-speed);
+            }
         break;
     }
     var payload={};
     game.emit('animateEnemies',payload);
     FamousEngine.getClock().setTimeout(function(){
-      addEnemyUtil();
-      collisionDetection();
+        addEnemyUtil();
+        collisionDetection();
     },timing);
 }
 function addEnemyUtil(){
-    if(gameEnemies._components[3]){
-        gameEnemies.removeComponent(gameEnemies._components[3]);
+    if(gameEnemies.createEnemiesComponent){
+        gameEnemies.removeComponent(gameEnemies.createEnemiesComponent);
     }
     if (game.over == false) {
-        var timings_teirs = [
-          [600,800],
-          [500,700],
-          [400,600],
-          [300,500],
-          [200,300],
-          [100,200]
-        ];
-        // speed should be determined by a factor of the score and is a measure
-        // of how fast the enemy will be
-        var speed = 300; // 300 + (random * score)
-        // timing should be determined by a factor of the score and is a measure
-        // of how quickly new enemy will be created
+        var timings_teirs = [[500,1000],[400,700],[300,500],[200,400],[100,250],[50,125]];
+        var speed_range = [200,300];
+        var speed = Math.floor(
+            (Math.floor(Math.random()*(speed_range[1]-speed_range[0]))+speed_range[0])
+            + (Math.floor(Math.random()*(game.score+1))/ game.speed_reducer)
+        );
         var i=0;
-        if (game.score < 1000 ){
+        if ((game.score/game.teir_reducer) < 200 ){
             i=0
-        }else if (game.score < 2000 ) {
+        }else if ((game.score/game.teir_reducer)< 400 ) {
             i=1;
-        }else if (game.score < 3000) {
+        }else if ((game.score/game.teir_reducer)< 800) {
             i=2;
-        }else if (game.score < 4000) {
+        }else if ((game.score/game.teir_reducer)< 1600) {
             i=3;
-        }else if (game.score < 5000) {
+        }else if ((game.score/game.teir_reducer)< 2400) {
             i=4;
-        }else if (game.score > 5001) {
+        }else if ((game.score/game.teir_reducer)>= 2400) {
             i=5;
         }
         var timing_teir = timings_teirs[i];
         var timing = Math.floor(Math.random()*(timing_teir[1] - timing_teir[0])) + timing_teir[0];
-        addEnemy(speed,timing)
+        addEnemy(speed,timing);
     }
 }
 function followAction(){
@@ -479,12 +565,16 @@ function followAction(){
     var currentPos = game.boxNode.getPosition();
     if(game.boxNode.idle == true){
         game.boxNode.box.setPosition(newPosX,newPosY,0);
-        game.boxNode.idle = false;
+        FamousEngine.getClock().setTimeout(function(){
+          game.boxNode.idle = false;
+      },1000);
     } else {
         var xDiff, yDiff;
         xDiff = Math.abs(currentPos[0] - newPosX);
         yDiff = Math.abs(currentPos[1] - newPosY);
         if(xDiff > 200 || yDiff > 200 ){
+            // FIX this
+            // Position class breaks contact manifolds
             game.boxNode.box.position = new Position(game.boxNode);
             game.boxNode.box.position.set(newPosX,newPosY,10000,{duration:1000});
             game.boxNode.box.position.onUpdate;
@@ -500,6 +590,170 @@ function updateScore(score,node){
     score.DOMElement.setContent(newScore);
     node.newEnemyComponent.done(node);
 }
+function manageGUIBars(){
+
+}
+function setSlowTime() {
+    if(!game.slowTime){
+        game.slowTime = true;
+        var slowTimeBarTimerNode = gameUI.addChild();
+        game.slowTimeBarTimerNode = slowTimeBarTimerNode;
+        slowTimeBarTimerNode.name = "slowTimeBarTimerNode";
+        slowTimeBarTimerNode.setSizeMode('relative','absolute')
+            .setAbsoluteSize(null,10)
+            .setProportionalSize(0.9,null)
+            .setAlign(0.5,0);
+        slowTimeBarTimerNode.setPosition(-(Math.floor((gameSize[0] * .9)/2)),120,1);
+        slowTimeBarTimerNode.DOMElement = new DOMElement(slowTimeBarTimerNode);
+        slowTimeBarTimerNode.DOMElement
+            .setProperty('background-color','black')
+            .setProperty('opacity','0.5');
+        slowTimeBarTimerNode.slowTimeBarTimerComponent = {
+            id:null,
+            node:null,
+            startTime:null,
+            done: function(node){
+                gameUI.removeChild(node);
+                Dismount(node);
+                for(var i=0;i<FamousEngine._updateQueue.length;i++){
+                    if(FamousEngine._updateQueue[i] == node){
+                        FamousEngine._updateQueue.splice(i,1);
+                        i--;
+                        continue;
+                    }
+                }
+                delete game.slowTime;
+                delete game.slowTimeBarTimerNode.DOMElement;
+                delete game.slowTimeBarTimerNode;
+                for(var i=0; i< gameEnemies._children.length; i++){
+                    if(gameEnemies._children[i] != null){
+                        var veloArr = gameEnemies._children[i].sphere.velocity.toArray();
+                        for(var j=0; j< veloArr.length; j++){
+                            veloArr[j] = Math.floor(veloArr[j]*2);
+                        }
+                        gameEnemies._children[i].sphere.setVelocity(veloArr[0],veloArr[1],veloArr[2])
+                    }
+                }
+            },
+            onMount: function(node){
+                this.id = node.addComponent(this);
+                this.node = node;
+            },
+            onUpdate: function(time){
+                if(this.startTime == null){
+                    this.startTime = time;
+                }
+                else{
+                    var diffTime = time - this.startTime;
+                    if(diffTime > 3000){
+                        this.done(this.node);
+                    }
+                    else {
+                        var percentage = diffTime / 3000;
+                        percentage = 0.9 * (1 - percentage)
+                        this.node.setProportionalSize(percentage,null);
+                    }
+                }
+                for(var i=0; i< gameEnemies._children.length; i++){
+                    if(gameEnemies._children[i] != null && !gameEnemies._children[i].slowed){
+                        var veloArr = gameEnemies._children[i].sphere.velocity.toArray();
+                        for(var j=0; j< veloArr.length; j++){
+                            veloArr[j] = Math.floor(veloArr[j]/2);
+                        }
+                        gameEnemies._children[i].sphere.setVelocity(veloArr[0],veloArr[1],veloArr[2])
+                        gameEnemies._children[i].slowed = true;
+                    }
+                }
+                this.node.requestUpdateOnNextTick(this.id);
+            }
+        }
+        slowTimeBarTimerNode.addComponent(slowTimeBarTimerNode.slowTimeBarTimerComponent);
+        slowTimeBarTimerNode.requestUpdate(slowTimeBarTimerNode.slowTimeBarTimerComponent.id);
+    }else{
+        game.slowTimeBarTimerNode.slowTimeBarTimerComponent.startTime = FamousEngine.getClock()._time;
+    }
+}
+function setInvincible(){
+    if(!game.invincible){
+        game.invincible = true;
+        var invincibleBarTimerNode = gameUI.addChild();
+        game.invincibleBarTimerNode = invincibleBarTimerNode;
+        invincibleBarTimerNode.name = "invincibleBarTimerNode";
+        invincibleBarTimerNode.setSizeMode('relative','absolute')
+            .setAbsoluteSize(null,10)
+            .setProportionalSize(0.9,null)
+            .setAlign(0.5,0);
+        invincibleBarTimerNode.setPosition(-(Math.floor((gameSize[0] * .9)/2)),100,1);
+        invincibleBarTimerNode.DOMElement = new DOMElement(invincibleBarTimerNode);
+        invincibleBarTimerNode.DOMElement
+                .setProperty('background-color','black')
+                .setProperty('opacity','0.5');
+        invincibleBarTimerNode.invincibleBarTimerComponent = {
+            id:null,
+            node:null,
+            startTime:null,
+            done: function(node){
+                gameUI.removeChild(node);
+                Dismount(node);
+                for(var i=0;i<FamousEngine._updateQueue.length;i++){
+                    if(FamousEngine._updateQueue[i] == node){
+                        FamousEngine._updateQueue.splice(i,1);
+                        i--;
+                        continue;
+                    }
+                }
+                delete game.invincible;
+                delete game.invincibleBarTimerNode.DOMElement;
+                delete game.invincibleBarTimerNode;
+            },
+            onMount: function(node){
+                this.id = node.addComponent(this);
+                this.node = node;
+            },
+            onUpdate: function(time){
+                if(this.startTime == null){
+                    this.startTime = time;
+                }
+                else{
+                    var diffTime = time - this.startTime;
+                    if(diffTime > 3000){
+                        this.done(this.node);
+                    }
+                    else {
+                        var percentage = diffTime / 3000;
+                        percentage = 0.9 * (1 - percentage)
+                        this.node.setProportionalSize(percentage,null);
+                    }
+                }
+                this.node.requestUpdateOnNextTick(this.id);
+            }
+        }
+        invincibleBarTimerNode.addComponent(invincibleBarTimerNode.invincibleBarTimerComponent);
+        invincibleBarTimerNode.requestUpdate(invincibleBarTimerNode.invincibleBarTimerComponent.id);
+    }else{
+        game.invincibleBarTimerNode.invincibleBarTimerComponent.startTime = FamousEngine.getClock()._time;
+    }
+
+}
+function manageLives(gameLivesComponent, op) {
+    game.lives += op;
+    if(op == 1 && game.lives <= 3){
+        var i = game.lives;
+        var newLifeNode = game.gameLivesNode.addChild();
+        newLifeNode.setSizeMode('absolute','absolute')
+            .setAbsoluteSize(40,40)
+            .setAlign(0.5,0.5)
+            .setPosition((-120)+(40*i),0,1);
+        newLifeNode.DOMElement = new DOMElement(newLifeNode);
+        newLifeNode.DOMElement.setProperty('background-color','green')
+            .setProperty('opacity','0.4')
+            .setProperty('padding','5px 0px');
+    }else if(op == -1 && gameLivesComponent.node._children[gameLivesComponent.node._children.length-1] != null) {
+        Dismount(gameLivesComponent.node._children[gameLivesComponent.node._children.length-1]);
+        gameLivesComponent.node._children.splice(gameLivesComponent.node._children.length - 1,1)
+    }
+    if(game.lives > 3)game.lives = 3;
+}
 function gameOver(){
     var allEnemies = gameEnemies.getChildren();
     while(allEnemies.length){
@@ -509,7 +763,7 @@ function gameOver(){
         }
         allEnemies[0].newEnemyComponent.done(allEnemies[0]);
     }
-    gameEnemies.requestUpdate(gameEnemies._components[3].id);
+    gameEnemies.requestUpdate(gameEnemies.createEnemiesComponent.id);
     game.over = true;
     var gC = gameUI.getChildren()
     var score = gC[1];
@@ -522,7 +776,8 @@ function gameOver(){
     gameOverNode.DOMElement = new DOMElement(gameOverNode);
     gameOverNode.DOMElement.setProperty('font-size','64px')
         .setProperty('text-align','center')
-        .setContent('Game Over');
+        .setContent('Game Over')
+        .setProperty('background','none');
     createStartButtonNode(true);
     score.setAlign(0.5,0.3,0);
     score.DOMElement.setProperty('opacity','1.0');
@@ -531,6 +786,10 @@ function gameOver(){
         .setPosition(-20,-20,1000);
     game.boxNode.idle = true;
     document.body.style.cursor = "auto";
+    if(game.storage['available'] == true
+    && window.localStorage['high_score']
+    && window.localStorage['high_score'] < game.score)
+        window.localStorage['high_score'] = game.score;
 }
 function resetBody(body){
     body.angularMomentum = new Vec3(0,0,0);
@@ -556,23 +815,49 @@ function collisionDetection(){
                     world.constraints[i].detected = true;
                     resetBody(game.boxNode.box);
                     if(world.constraints[i].targets[1].node.DOMElement){
-                        var enemyType = world.constraints[i].targets[1].node.DOMElement._styles.background;
+                        var enemy = world.constraints[i].targets[1].node;
+                        var enemyType = enemy.DOMElement._styles.background;
                         if(enemyType == 'black'){
                             var payload = {};
-                            payload.deadNode = world.constraints[i].targets[1].node;
+                            payload.deadNode = enemy;
                             game.emit('updateScore',payload)
                         }else if(enemyType == 'red'){
-                            gameOver();
+                            if(!game.invincible && game.lives == 1){
+                                gameOver();
+                            }
+                            else{
+                                enemy.newEnemyComponent.done(enemy);
+                                game.emit('manageLives',{'life':-1});
+                            }
+                        }else if(enemyType == 'blue'){
+                            enemy.newEnemyComponent.done(enemy);
+                            setInvincible();
+                        }else if(enemyType == 'grey'){
+                            enemy.newEnemyComponent.done(enemy);
+                            setSlowTime();
+                        }else if (enemyType == 'green') {
+                            enemy.newEnemyComponent.done(enemy);
+                            game.teir_reducer += 2;
+                        }else if (enemyType == 'yellow') {
+                            enemy.newEnemyComponent.done(enemy);
+                            game.speed_reducer += 10;
+                        }else if (enemyType == 'orange') {
+                            enemy.newEnemyComponent.done(enemy);
+                            game.score += 1000;
+                        }else if (enemyType == 'purple') {
+                            enemy.newEnemyComponent.done(enemy);
+                            game.emit('manageLives',{'life':1});
                         }
                     }
                 }
             }
+            game.emit('sequence_timed',{})
             world.update(time);
             this.node.requestUpdateOnNextTick(this.id);
         }
     };
     gameEnemies.addComponent(collisionComponent);
-    gameEnemies.requestUpdate(gameEnemies._components[3].id);
+    gameEnemies.requestUpdate(gameEnemies.createEnemiesComponent.id);
 }
 var Dismount = function(node) {
     var aNodes = [];
@@ -587,7 +872,33 @@ var Dismount = function(node) {
     f(node);
     while ( aNodes.length ) {
         var x = aNodes.pop();
-        if ( x.isMounted())
+        if ( x.isMounted()){
+            //var parent = x._parent;
             x.dismount();
+            /*for(var j in parent._children){
+                if(parent._children[j] == null)
+                    parent._children.splice(j,1);
+            }*/
+        }
     }
+}
+function storageAvailable(type) {
+	try {
+		var storage = window[type],
+			x = '__storage_test__';
+		storage.setItem(x, x);
+		storage.removeItem(x);
+		return true;
+	}
+	catch(e) {
+		return false;
+	}
+}
+if (storageAvailable('localStorage')) {
+	alert('yes ' + window.localStorage.high_score);
+    game.storage = {available:true};
+}
+else {
+	alert('no');
+    game.storage = {available:false};
 }
