@@ -2,6 +2,9 @@
 #Crossfire
 > The prototype project for the game Star Catcher: Space Saga (WT) 
 
+###Bugs
+ > When multiple collisions occur with the box body (player) one or more of the colliding sphere bodies will have a broken body and the resulting DOMElement and node are not cleared away but remain on the screen unmoving
+ > Using Position class on sphere to animate a timed movement breaks collision detection (collision detections expects Position values to be in VEC3 Obj not POSITION Obj)
 
 ---
 
