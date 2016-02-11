@@ -114,7 +114,7 @@ function initGame() {
         },
         onReceive: function(event,payload) {
             if(event == 'createEnemies')
-                this.node.requestUpdate(this.id);
+                this.node.requestUpdateOnNextTick(this.id);
         },
         onUpdate: function() {
             if(this.active != true){
@@ -125,12 +125,7 @@ function initGame() {
         }
     };
     gameEnemies.addComponent(gameEnemies.createEnemiesComponent);
-    gameEnemies.requestUpdate(gameEnemies.createEnemiesComponent.id);
-    var payload={}, emitted = false;
-    if(emitted == false ){
-        game.emit("createEnemies",payload);
-        emitted = true;
-    }
+    game.emit("createEnemies",{});
     var scoreNode = gameUI.addChild();
     scoreNode.name = "scoreNode";
     game.sizes = game.getSize();
@@ -143,7 +138,7 @@ function initGame() {
         .setProperty('opacity','0.5')
         .setProperty('text-align','center')
         .setContent('0');
-    game.score = "0";
+    game.score = 0;
     var scoreComponent = {
         id:null,
         node:null,
@@ -153,12 +148,12 @@ function initGame() {
         },
         onReceive: function(event,payload){
             if(event == 'updateScore'){
-                this.node.deadNode = payload.deadNode;
-                this.node.requestUpdate(this.id);
+                this.node.payload = payload;
+                this.node.requestUpdateOnNextTick(this.id);
             }
         },
         onUpdate: function(){
-            updateScore(scoreNode,scoreNode.deadNode);
+            updateScore(scoreNode,scoreNode.payload);
         }
     }
     scoreNode.addComponent(scoreComponent);
@@ -175,7 +170,7 @@ function initGame() {
         onReceive: function(event,payload){
             if(event == 'manageLives'){
                 this.life = payload.life;
-                this.node.requestUpdate(this.id);
+                this.node.requestUpdateOnNextTick(this.id);
             }
         },
         onUpdate: function(time){
@@ -236,7 +231,7 @@ function createBoxNode() {
         .setProperty('z-index','1000');
     boxNode.addUIEvent('click');
     var boxNodePosition = boxNode.getPosition();
-    var boxNodeComponent = boxNode.addComponent({
+    var boxNodeComponentID = boxNode.addComponent({
         id:null,
         node:null,
         onMount: function(node) {
@@ -263,7 +258,7 @@ function createBoxNode() {
         }
     });
     addAnimationComponent(boxNode);
-    boxNode.requestUpdate(boxNodeComponent);
+    boxNode.requestUpdateOnNextTick(boxNodeComponentID);
 }
 function addAnimationComponent(char){
     var myComponent = {
@@ -311,7 +306,7 @@ function addAnimationComponent(char){
                         duration += frames[x].ms;
                     }
                     this.node.animationTransitionable = new Transitionable(0);
-                    this.node.requestUpdate(this.id);
+                    this.node.requestUpdateOnNextTick(this.id);
                     this.node.animationTransitionable.from(0).to(duration, 'linear', duration, this.done, null, this.node);
                 }
             }
@@ -343,7 +338,7 @@ function addAnimationComponent(char){
                     }
                 }else if(animation.frameIterator >= frames.length){
                     if(transition.isActive()){
-                        transition.get();
+                        var forceMove =transition.get();
                         this.node.requestUpdateOnNextTick(this.id);
                     }
                 }
@@ -406,21 +401,27 @@ function addEnemy(speed, timing){
         color=colors[7];
     }
     newEnemy.DOMElement.setProperty('background',color)//s[Math.floor(Math.random()*colors.length)])
-        .setProperty('border-radius',"100%");
+        .setProperty('border-radius', "100%")
+        .setProperty('text-align', 'center')
+        .setProperty('font-size', '18px')
+        .setProperty('color', 'blue')
+        .setProperty('word-wrap', 'break-word')
+        .setContent(newEnemy.num + " " + newEnemy._id);
     newEnemy.newEnemyComponent = {
         id: null,
         node: null,
         done: function(node){
+            console.log("done ", node._id)
             game.world.remove(node.collision);
             game.world.remove(node.sphere);
             Dismount(node);
-            for(var i=0;i<FamousEngine._updateQueue.length;i++){
-                if(FamousEngine._updateQueue[i] == node){
-                    FamousEngine._updateQueue.splice(i,1);
-                    i--;
-                    continue;
-                }
+            if(node in node._updater._updateQueue){
+                FamousEngine._updateQueue.splice(node._updater._updateQueue.indexOf(node), 1);
             }
+            if(node._updateQueue && node._updateQueue.length)
+                node._updateQueue = null;
+            if(node._nextUpdateQueue && node._nextUpdateQueue.length)
+                node._nextUpdateQueue = null;
         },
         onMount: function (node){
             this.id = node.addComponent(this);
@@ -428,17 +429,18 @@ function addEnemy(speed, timing){
         },
         onReceive: function(event,payload){
             if(event == "animateEnemies"){
-                this.node.requestUpdate(this.id);
+                this.node.requestUpdateOnNextTick(this.id);
             }
         },
         onUpdate: function(time){
             var spherePosition = this.node.sphere.getPosition();
-            if(spherePosition.x == NaN || spherePosition.y == NaN || spherePosition.z == NaN){
-                this;
-            }
-            if(Math.abs(spherePosition.x) > gameSize[0] || Math.abs(spherePosition.y) > gameSize[1]){
-                if(this.node._id != null)
+            console.log(this.node._id +" " + spherePosition.x,spherePosition.y)
+            if((spherePosition.x-65) > gameSize[0] || (spherePosition.x+65) < 0
+                || (spherePosition.y-65) > gameSize[1] || (spherePosition.y+65) < 0){
+                if(this.node._id != null){
+                    console.log(this.node._id + " done - enemyNode Update")
                     this.done(this.node);
+                }
             }else{
                 this.node.setPosition(spherePosition.x,spherePosition.y);
                 this.node.requestUpdateOnNextTick(this.id);
@@ -517,7 +519,7 @@ function addEnemy(speed, timing){
     game.emit('animateEnemies',payload);
     FamousEngine.getClock().setTimeout(function(){
         addEnemyUtil();
-        collisionDetection();
+        gameEnemies.requestUpdateOnNextTick(gameEnemies.collisionComponent.id);
     },timing);
 }
 function addEnemyUtil(){
@@ -583,14 +585,23 @@ function followAction(){
         }
     }
 }
-function updateScore(score,node){
-    var numScore = parseInt(score.DOMElement._content);
-    var newScore = numScore + node.getSize()[0];
-    game.score = newScore;
-    score.DOMElement.setContent(newScore);
-    node.newEnemyComponent.done(node);
+function updateScore(score, payload){
+    if(payload.score){
+        game.score +=1000;
+    }else{
+        game.score += payload.deadNode.getSize()[0];
+    }
+    console.log(payload.deadNode._id, " done (updateScore)")
+    payload.deadNode.newEnemyComponent.done(payload.deadNode);
+    score.DOMElement.setContent(game.score);
 }
 function manageGUIBars(){
+    var type = null;
+    if(arguments[0]) type = arguments[0];
+
+
+
+
 
 }
 function setSlowTime() {
@@ -668,7 +679,7 @@ function setSlowTime() {
             }
         }
         slowTimeBarTimerNode.addComponent(slowTimeBarTimerNode.slowTimeBarTimerComponent);
-        slowTimeBarTimerNode.requestUpdate(slowTimeBarTimerNode.slowTimeBarTimerComponent.id);
+        slowTimeBarTimerNode.requestUpdateOnNextTick(slowTimeBarTimerNode.slowTimeBarTimerComponent.id);
     }else{
         game.slowTimeBarTimerNode.slowTimeBarTimerComponent.startTime = FamousEngine.getClock()._time;
     }
@@ -729,7 +740,7 @@ function setInvincible(){
             }
         }
         invincibleBarTimerNode.addComponent(invincibleBarTimerNode.invincibleBarTimerComponent);
-        invincibleBarTimerNode.requestUpdate(invincibleBarTimerNode.invincibleBarTimerComponent.id);
+        invincibleBarTimerNode.requestUpdateOnNextTick(invincibleBarTimerNode.invincibleBarTimerComponent.id);
     }else{
         game.invincibleBarTimerNode.invincibleBarTimerComponent.startTime = FamousEngine.getClock()._time;
     }
@@ -761,9 +772,10 @@ function gameOver(){
             allEnemies.splice(0,1)
             continue;
         }
+        console.log(allEnemies[0]._id, " done (game over)" );
         allEnemies[0].newEnemyComponent.done(allEnemies[0]);
     }
-    gameEnemies.requestUpdate(gameEnemies.createEnemiesComponent.id);
+    gameEnemies.requestUpdateOnNextTick(gameEnemies.createEnemiesComponent.id);
     game.over = true;
     var gC = gameUI.getChildren()
     var score = gC[1];
@@ -823,28 +835,41 @@ function collisionDetection(){
                             game.emit('updateScore',payload)
                         }else if(enemyType == 'red'){
                             if(!game.invincible && game.lives == 1){
-                                gameOver();
+                                //gameOver();
+                                console.log(enemy._id, " done (collisionDetection - red - 1)")
+                                enemy.newEnemyComponent.done(enemy);
+                            }else if (game.invincible){
+                                console.log(enemy._id, " done (collisionDetection - red - 2)")
+                                enemy.newEnemyComponent.done(enemy);
                             }
                             else{
+                                console.log(enemy._id, " done (collisionDetection - red -3)")
                                 enemy.newEnemyComponent.done(enemy);
                                 game.emit('manageLives',{'life':-1});
                             }
                         }else if(enemyType == 'blue'){
+                            console.log(enemy._id, " done (collisionDetection) - blue")
                             enemy.newEnemyComponent.done(enemy);
                             setInvincible();
                         }else if(enemyType == 'grey'){
+                            console.log(enemy._id, " done (collisionDetection) - grey")
                             enemy.newEnemyComponent.done(enemy);
                             setSlowTime();
                         }else if (enemyType == 'green') {
+                            console.log(enemy._id, " done (collisionDetection) - green")
                             enemy.newEnemyComponent.done(enemy);
                             game.teir_reducer += 2;
                         }else if (enemyType == 'yellow') {
+                            console.log(enemy._id, " done (collisionDetection) - yellow")
                             enemy.newEnemyComponent.done(enemy);
                             game.speed_reducer += 10;
                         }else if (enemyType == 'orange') {
+                            console.log(enemy._id, " done (collisionDetection) - orange")
                             enemy.newEnemyComponent.done(enemy);
-                            game.score += 1000;
+                            var payload = {score:1000,deadNode:enemy};
+                            game.emit("updateScore",payload);
                         }else if (enemyType == 'purple') {
+                            console.log(enemy._id, " done (collisionDetection) - purple")
                             enemy.newEnemyComponent.done(enemy);
                             game.emit('manageLives',{'life':1});
                         }
@@ -853,11 +878,12 @@ function collisionDetection(){
             }
             game.emit('sequence_timed',{})
             world.update(time);
-            this.node.requestUpdateOnNextTick(this.id);
+            this.node.requestUpdateOnNextTick(this);
         }
     };
+    gameEnemies.collisionComponent = collisionComponent;
     gameEnemies.addComponent(collisionComponent);
-    gameEnemies.requestUpdate(gameEnemies.createEnemiesComponent.id);
+    gameEnemies.requestUpdateOnNextTick(gameEnemies.createEnemiesComponent.id);
 }
 var Dismount = function(node) {
     var aNodes = [];
@@ -895,10 +921,10 @@ function storageAvailable(type) {
 	}
 }
 if (storageAvailable('localStorage')) {
-	alert('yes ' + window.localStorage.high_score);
+	//alert('yes ' + window.localStorage.high_score);
     game.storage = {available:true};
 }
 else {
-	alert('no');
+	//alert('no');
     game.storage = {available:false};
 }
