@@ -788,10 +788,10 @@ function gameOver(){
         .setPosition(-20,-20,1000);
     game.boxNode.idle = true;
     document.body.style.cursor = "auto";
-    if(game.storage['available'] == true
-    && window.localStorage['high_score']
-    && window.localStorage['high_score'] < game.score)
-        window.localStorage['high_score'] = game.score;
+    if(game.storage.available == true
+    && window.localStorage.high_score
+    && window.localStorage.high_score < game.score)
+        window.localStorage.high_score = game.score;
 }
 function resetBody(body){
     body.angularMomentum = new Vec3(0,0,0);
@@ -890,12 +890,7 @@ var Dismount = function(node) {
     while ( aNodes.length ) {
         var x = aNodes.pop();
         if ( x.isMounted()){
-            //var parent = x._parent;
             x.dismount();
-            /*for(var j in parent._children){
-                if(parent._children[j] == null)
-                    parent._children.splice(j,1);
-            }*/
         }
     }
 }
@@ -911,11 +906,12 @@ function storageAvailable(type) {
 		return false;
 	}
 }
-if (storageAvailable('localStorage')) {
-	//alert('yes ' + window.localStorage.high_score);
+if (storageAvailable.localStorage) {
+    window.localStorage.high_score = 0;
+	alert('yes ' + window.localStorage.high_score);
     game.storage = {available:true};
 }
 else {
-	//alert('no');
+	alert('no');
     game.storage = {available:false};
 }
