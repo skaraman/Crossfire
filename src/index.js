@@ -95,7 +95,7 @@ function initGame() {
     }
     document.body.style.cursor = "none";
     if(gameEnemies){
-        Dismount(gameEnemies);
+        gameEnemies.dismount();
         gameEnemies = {};
     }
     gameEnemies = game.addChild();
@@ -275,29 +275,30 @@ function addAnimationComponent(char){
             this.node = node;
         },
         onReceive: function (event, payload) {
-            if (this.node.framedata[event]) {
-                if(!this.node.framedata.active){
-                    this.node.framedata.active = this.node.framedata[event];
-                    this.node.framedata.active.event = event;
+            var framedata = this.node.framedata;
+            if (framedata[event]) {
+                if(!framedata.active){
+                    framedata.active = framedata[event];
+                    framedata.active.event = event;
                     if((typeof payload.interruptable) != 'undefined')
-                        this.node.framedata.active.interruptable = payload.interruptable;
+                        framedata.active.interruptable = payload.interruptable;
                 }
-                if((typeof this.node.framedata.active.interruptable) != 'undefined'){
-                    if(this.node.framedata.active.interruptable == false){
+                if((typeof framedata.active.interruptable) != 'undefined'){
+                    if(framedata.active.interruptable == false){
                         payload.interrupt = false;
                     }
                 }
-                if (this.node.framedata.active.frameIterator < 1 || payload.interrupt) {
+                if (framedata.active.frameIterator < 1 || payload.interrupt) {
                     if(payload.interrupt){
                         if(this.node.animationTransitionable) this.node.animationTransitionable.halt();
-                        this.node.framedata.active.frameIterator = 0;
+                        framedata.active.frameIterator = 0;
                     }
-                    this.node.framedata.active = this.node.framedata[event];
-                    this.node.framedata.active.event = event;
+                    framedata.active = framedata[event];
+                    framedata.active.event = event;
                     if((typeof payload.interruptable) != 'undefined')
-                        this.node.framedata.active.interruptable = payload.interruptable;
+                        framedata.active.interruptable = payload.interruptable;
 
-                    var frames = this.node.framedata.active.frames;
+                    var frames = framedata.active.frames;
                     var duration=0;
                     for(var x=0; x < frames.length; x++){
                         duration += frames[x].ms;
@@ -309,8 +310,9 @@ function addAnimationComponent(char){
             }
         },
         onUpdate: function() {
-            if(this.node.framedata.active){
-                var animation = this.node.framedata.active;
+            var framedata = this.node.framedata;
+            if(framedata.active){
+                var animation = framedata.active;
                 var frames = animation.frames;
                 var transition = this.node.animationTransitionable;
                 var grace = 2;
@@ -375,7 +377,7 @@ function addEnemy(speed, timing){
     newEnemy.DOMElement = new DOMElement(newEnemy);
     var colors = []
     if(game.score < 699){
-        colors = ['red','black','red','black','red','black','red','black'];
+        colors = ['orange','grey','red','black','red','black','red','black'];
     }else{
         colors = ['red','black','blue','grey','green','yellow','orange','purple'];
     }
@@ -397,28 +399,21 @@ function addEnemy(speed, timing){
     }else if (x == 100){
         color=colors[7];
     }
-    newEnemy.DOMElement.setProperty('background',color)//s[Math.floor(Math.random()*colors.length)])
-        .setProperty('border-radius', "100%")
-        .setProperty('text-align', 'center')
-        .setProperty('font-size', '18px')
-        .setProperty('color', 'blue')
-        .setProperty('word-wrap', 'break-word')
-        .setContent(newEnemy.num + " " + newEnemy._id);
+    newEnemy.DOMElement.setProperty('background',color)
+        .setProperty('border-radius', "100%");
     newEnemy.newEnemyComponent = {
         id: null,
         node: null,
         done: function(node){
-            console.log("done ", node._id)
-            game.world.remove(node.collision);
-            game.world.remove(node.sphere);
-            Dismount(node);
-            if(node in node._updater._updateQueue){
+            if(node in node._updater._updateQueue)
                 FamousEngine._updateQueue.splice(node._updater._updateQueue.indexOf(node), 1);
-            }
             if(node._updateQueue && node._updateQueue.length)
                 node._updateQueue = [];
             if(node._nextUpdateQueue && node._nextUpdateQueue.length)
                 node._nextUpdateQueue = [];
+            game.world.remove(node.collision);
+            game.world.remove(node.sphere);
+            node.dismount();
         },
         onMount: function (node){
             this.id = node.addComponent(this);
@@ -431,11 +426,9 @@ function addEnemy(speed, timing){
         },
         onUpdate: function(time){
             var spherePosition = this.node.sphere.getPosition();
-            //console.log(this.node._id +" " + spherePosition.x,spherePosition.y)
             if((spherePosition.x-65) > gameSize[0] || (spherePosition.x+65) < 0
                 || (spherePosition.y-65) > gameSize[1] || (spherePosition.y+65) < 0){
                 if(this.node._id != null){
-                    console.log(this.node._id + " done - enemyNode Update")
                     this.done(this.node);
                 }
             }else{
@@ -512,8 +505,7 @@ function addEnemy(speed, timing){
             }
         break;
     }
-    var payload={};
-    game.emit('animateEnemies',payload);
+    newEnemy.requestUpdate(newEnemy.newEnemyComponent.id)
     FamousEngine.getClock().setTimeout(function(){
         addEnemyUtil();
     },timing);
@@ -586,7 +578,6 @@ function updateScore(score, payload){
     }else{
         game.score += payload.deadNode.getSize()[0];
     }
-    console.log(payload.deadNode._id, " done (updateScore)")
     payload.deadNode.newEnemyComponent.done(payload.deadNode);
     score.DOMElement.setContent(game.score);
 }
@@ -614,18 +605,15 @@ function setSlowTime() {
             node:null,
             startTime:null,
             done: function(node){
-                gameUI.removeChild(node);
-                Dismount(node);
-                for(var i=0;i<FamousEngine._updateQueue.length;i++){
-                    if(FamousEngine._updateQueue[i] == node){
-                        FamousEngine._updateQueue.splice(i,1);
-                        i--;
-                        continue;
-                    }
-                }
+                if(node in node._updater._updateQueue)
+                    FamousEngine._updateQueue.splice(node._updater._updateQueue.indexOf(node), 1);
+                if(node._updateQueue && node._updateQueue.length)
+                    node._updateQueue = [];
+                if(node._nextUpdateQueue && node._nextUpdateQueue.length)
+                    node._nextUpdateQueue = [];
+                node.dismount();
                 delete game.slowTime;
                 delete game.slowTimeBarTimerNode.DOMElement;
-                delete game.slowTimeBarTimerNode;
                 for(var i=0; i< gameEnemies._children.length; i++){
                     if(gameEnemies._children[i] != null){
                         var veloArr = gameEnemies._children[i].sphere.velocity.toArray();
@@ -694,8 +682,7 @@ function setInvincible(){
             node:null,
             startTime:null,
             done: function(node){
-                gameUI.removeChild(node);
-                Dismount(node);
+                node.dismount();
                 for(var i=0;i<FamousEngine._updateQueue.length;i++){
                     if(FamousEngine._updateQueue[i] == node){
                         FamousEngine._updateQueue.splice(i,1);
@@ -705,7 +692,6 @@ function setInvincible(){
                 }
                 delete game.invincible;
                 delete game.invincibleBarTimerNode.DOMElement;
-                delete game.invincibleBarTimerNode;
             },
             onMount: function(node){
                 this.id = node.addComponent(this);
@@ -750,7 +736,7 @@ function manageLives(gameLivesComponent, op) {
             .setProperty('opacity','0.4')
             .setProperty('padding','5px 0px');
     }else if(op == -1 && gameLivesComponent.node._children[gameLivesComponent.node._children.length-1] != null) {
-        Dismount(gameLivesComponent.node._children[gameLivesComponent.node._children.length-1]);
+        gameLivesComponent.node._children[gameLivesComponent.node._children.length-1].dismount();
         gameLivesComponent.node._children.splice(gameLivesComponent.node._children.length - 1,1)
     }
     if(game.lives > 3)game.lives = 3;
@@ -762,7 +748,6 @@ function gameOver(){
             allEnemies.splice(0,1)
             continue;
         }
-        console.log(allEnemies[0]._id, " done (game over)" );
         allEnemies[0].newEnemyComponent.done(allEnemies[0]);
     }
     gameEnemies.requestUpdate(gameEnemies.createEnemiesComponent.id);
@@ -810,63 +795,54 @@ function collisionDetection(){
             this.node = node;
         },
         onUpdate: function(time) {
-            for(var i = 0; i < world.constraints.length;i++){
-                if(world.constraints[i]
-                && world.constraints[i].contactManifoldTable.collisionMatrix.hasOwnProperty(0)
-                && !world.constraints[i].detected){
-                    world.constraints[i].detected = true;
+            var len = world.constraints.length;
+            var constraint, enemy, enemyType, payload;
+            for(var i = 0; i < len;i++){
+                constraint = world.constraints[i];
+                if(constraint
+                && constraint.contactManifoldTable.collisionMatrix.hasOwnProperty(0)
+                && !constraint.detected){
+                    constraint.detected = true;
                     resetBody(game.boxNode.box);
-                    if(world.constraints[i].targets[1].node.DOMElement){
-                        var enemy = world.constraints[i].targets[1].node;
-                        var enemyType = enemy.DOMElement._styles.background;
+                    if(constraint.targets[1].node.DOMElement){
+                        enemy = constraint.targets[1].node;
+                        enemyType = enemy.DOMElement._styles.background;
                         if(enemyType == 'black'){
-                            var payload = {};
+                            payload = {};
                             payload.deadNode = enemy;
                             game.emit('updateScore',payload)
                         }else if(enemyType == 'red'){
                             if(!game.invincible && game.lives == 1){
-                                //gameOver();
-                                console.log(enemy._id, " done (collisionDetection - red - 1)")
-                                enemy.newEnemyComponent.done(enemy);
+                                gameOver();
                             }else if (game.invincible){
-                                console.log(enemy._id, " done (collisionDetection - red - 2)")
                                 enemy.newEnemyComponent.done(enemy);
-                            }
-                            else{
-                                console.log(enemy._id, " done (collisionDetection - red -3)")
+                            }else{
                                 enemy.newEnemyComponent.done(enemy);
                                 game.emit('manageLives',{'life':-1});
                             }
                         }else if(enemyType == 'blue'){
-                            console.log(enemy._id, " done (collisionDetection) - blue")
                             enemy.newEnemyComponent.done(enemy);
                             setInvincible();
                         }else if(enemyType == 'grey'){
-                            console.log(enemy._id, " done (collisionDetection) - grey")
                             enemy.newEnemyComponent.done(enemy);
                             setSlowTime();
                         }else if (enemyType == 'green') {
-                            console.log(enemy._id, " done (collisionDetection) - green")
                             enemy.newEnemyComponent.done(enemy);
                             game.teir_reducer += 2;
                         }else if (enemyType == 'yellow') {
-                            console.log(enemy._id, " done (collisionDetection) - yellow")
                             enemy.newEnemyComponent.done(enemy);
                             game.speed_reducer += 10;
                         }else if (enemyType == 'orange') {
-                            console.log(enemy._id, " done (collisionDetection) - orange")
-                            enemy.newEnemyComponent.done(enemy);
                             var payload = {score:1000,deadNode:enemy};
                             game.emit("updateScore",payload);
                         }else if (enemyType == 'purple') {
-                            console.log(enemy._id, " done (collisionDetection) - purple")
                             enemy.newEnemyComponent.done(enemy);
                             game.emit('manageLives',{'life':1});
                         }
                     }
                 }
             }
-            game.emit('sequence_timed',{})
+            game.emit('sequence_timed',{});
             world.update(time);
             this.node.requestUpdate(this.id);
         }
@@ -875,12 +851,12 @@ function collisionDetection(){
     gameEnemies.addComponent(collisionComponent);
     gameEnemies.requestUpdate(gameEnemies.createEnemiesComponent.id);
 }
+/*
 var Dismount = function(node) {
     var aNodes = [];
     if ( !(node instanceof Node) )
         throw "node not a Famous#Node";
     var f = function(current) {
-
         aNodes.push(current);
         var aChildren = current.getChildren();
         for ( var i in aChildren )
@@ -893,7 +869,7 @@ var Dismount = function(node) {
             x.dismount();
         }
     }
-}
+}*/
 function storageAvailable(type) {
 	try {
 		var storage = window[type],
@@ -906,9 +882,8 @@ function storageAvailable(type) {
 		return false;
 	}
 }
-if (storageAvailable.localStorage) {
-    window.localStorage.high_score = 0;
-	alert('yes ' + window.localStorage.high_score);
+if (storageAvailable('localStorage')) {
+    if(!window.localStorage.high_score) window.localStorage.high_score = 0;
     game.storage = {available:true};
 }
 else {
