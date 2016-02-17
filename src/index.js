@@ -419,11 +419,6 @@ function addEnemy(speed, timing){
             this.id = node.addComponent(this);
             this.node = node;
         },
-        onReceive: function(event,payload){
-            if(event == "animateEnemies"){
-                this.node.requestUpdate(this.id);
-            }
-        },
         onUpdate: function(time){
             var spherePosition = this.node.sphere.getPosition();
             if((spherePosition.x-65) > gameSize[0] || (spherePosition.x+65) < 0
