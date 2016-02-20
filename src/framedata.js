@@ -73,7 +73,7 @@ Framedata.prototype.init = function init() {
                 ],
                 "frameIterator": 0,
                 "msTimer":0
-            ,},
+            },
             "sequence_timed": {
                 "frames" : [
                     {"x":0,"y":0,"ms":100},
