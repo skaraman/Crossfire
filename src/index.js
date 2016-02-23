@@ -836,49 +836,36 @@ function collisionDetection(){
                 constraint = c[i];
                 if(constraint
                 && constraint.contactManifoldTable.collisionMatrix.hasOwnProperty(0)){
-                //&& !constraint.detected){
-                    //constraint.detected = true;
                     resetBody(game.boxNode.box);
-                    if(constraint.targets[1].node.DOMElement){
+                    if(constraint.targets[1].node.DOMElement && !constraint.detected){
+                        constraint.detected = true;
                         enemy = constraint.targets[1].node;
                         enemyType = enemy.DOMElement._styles.background;
+                        enemy.newEnemyComponent.done(enemy);
                         if(enemyType == 'black'){
                             var score = enemy._size
-                            enemy.newEnemyComponent.done(enemy);
                             updateScore(score);
                         }else if(enemyType == 'red'){
                             if(!game.invincible && game.lives == 1){
                                 //gameOver();
-                                enemy.newEnemyComponent.done(enemy);
-                            }else if (game.invincible){
-                                enemy.newEnemyComponent.done(enemy);
-                            }else{
-                                enemy.newEnemyComponent.done(enemy);
+                            }else if (!game.invincible){
                                 game.emit('manageLives',{'life':-1});
                             }
                         }else if(enemyType == 'blue'){
-                            enemy.newEnemyComponent.done(enemy);
                             setInvincible();
                         }else if(enemyType == 'grey'){
-                            enemy.newEnemyComponent.done(enemy);
                             setSlowTime();
                         }else if (enemyType == 'green') {
-                            enemy.newEnemyComponent.done(enemy);
                             game.teir_reducer += 2;
                         }else if (enemyType == 'yellow') {
-                            enemy.newEnemyComponent.done(enemy);
                             game.speed_reducer += 10;
                         }else if (enemyType == 'orange') {
-                            enemy.newEnemyComponent.done(enemy);
                             updateScore(1000);
                         }else if (enemyType == 'purple') {
-                            enemy.newEnemyComponent.done(enemy);
                             game.emit('manageLives',{'life':1});
                         }else if (enemyType == 'violet') {
-                            enemy.newEnemyComponent.done(enemy);
                             //magenetic
                         }else if (enemyType == 'gainsboro') {
-                            enemy.newEnemyComponent.done(enemy);
                             //warp
                         }
                     }
