@@ -120,12 +120,14 @@ function initGame() {
                 this.node.requestUpdate(this.id);
         },
         onUpdate: function() {
+            loadingScreen('start');
             if(this.active != true){
                 addEnemyUtil();
                 setEnemyInMotion(gameEnemies._children[0]);
                 collisionDetection();
                 this.active = true;
                 game.emit('sequence_timed',{looping:true});
+                loadingScreen('end');
             }
         }
     };
@@ -145,24 +147,6 @@ function initGame() {
         .setProperty('text-align','center')
         .setContent('0');
     game.score = 0;
-    /*var scoreComponent = {
-        id:null,
-        node:null,
-        onMount: function(node){
-            this.id = node.addComponent(this);
-            this.node = node;
-        },
-        onReceive: function(event,payload){
-            if(event == 'updateScore'){
-                this.node.payload = payload;
-                this.node.requestUpdate(this.id);
-            }
-        },
-        onUpdate: function(){
-            updateScore(scoreNode,scoreNode.payload);
-        }
-    }
-    scoreNode.addComponent(scoreComponent);*/
     resetBody(game.boxNode.box);
     game.gameLivesNode = gameUI.addChild();
     game.gameLivesNode.gameLivesComponent = {
@@ -194,8 +178,7 @@ function createStartButtonNode() {
         .setPosition(-120,-30);
     startButtonNode.DOMElement = new DOMElement(startButtonNode);
     startButtonNode.DOMElement.setProperty('font-size','46px')
-        .setContent('Start Game 1');
-    //startButtonNode.addUIEvent('click');
+        .setContent('Start Game');
     var startComponent = {
         id: null,
         node: null,
@@ -228,14 +211,13 @@ function createBoxNode() {
     boxNode.setSizeMode('absolute', 'absolute')
         .setAbsoluteSize(40, 40)
         .setAlign(0.5,0.5)
-        .setPosition(-20,-20,1000)
+        .setPosition(-20,-20,10000)
         .setOrigin(0.5, 0.5);
     boxNode.size = 80;
     boxNode.DOMElement = new DOMElement(boxNode);
     boxNode.DOMElement.setProperty('background-image', 'url(./assets/grid.png)')
         .setProperty('background-size','1100% 600%')
         .setProperty('z-index','1000');
-    //boxNode.addUIEvent('click');
     var boxNodePosition = boxNode.getPosition();
     var boxNodeComponentID = boxNode.addComponent({
         id:null,
@@ -261,7 +243,6 @@ function createBoxNode() {
             }
             var currentPos = boxNode.box.getPosition();
             boxNode.setPosition(currentPos.x,currentPos.y,10000);
-            //boxNode.setRotation(0,0,-time/1000)
             boxNode.requestUpdate(this.id);
         }
     });
@@ -371,14 +352,16 @@ function addEnemy(color){
     newEnemy._size = size;
     newEnemy.setSizeMode('absolute', 'absolute')
         .setAbsoluteSize(size, size)
-        .setPosition(-(size+5),-(size+5));
+        .setPosition(-(size+5),-(size+5),3);
     newEnemy.DOMElement = new DOMElement(newEnemy);
     newEnemy.DOMElement.setProperty('background',color)
         .setProperty('color','teal')
-        .setProperty('font-size','12px')
+        .setProperty('font-size','24px')
+        .setProperty('font-weight','bold')
         .setProperty('word-wrap','break-word')
         .setProperty('border-radius', "100%")
-        .setContent(newEnemy._id);
+        .setProperty('text-align','center')
+        .setContent(newEnemy._id.substring(newEnemy._id.length-2,newEnemy._id.length));
     var newEnemyPosition = newEnemy.getPosition();
     newEnemy._position = newEnemyPosition;
     newEnemy.sphere = new Sphere({
@@ -401,23 +384,13 @@ function addEnemyComponent(newEnemy){
         id: null,
         node: null,
         done: function(node){
-            /*if(node in node._updater._updateQueue)
-                FamousEngine._updateQueue.splice(node._updater._updateQueue.indexOf(node), 1);
-            if(node._updateQueue && node._updateQueue.length)
-                node._updateQueue = [];
-            if(node._nextUpdateQueue && node._nextUpdateQueue.length)
-                node._nextUpdateQueue = [];*/
-            //game.world.remove(node.collision);
-            //game.world.remove(node.sphere);
-            //node.dismount();
             node.sphere.setPosition(-100,-100,-100);
             resetBody(node.sphere);
             resetBody(game.boxNode.box);
             game.inactive.push(node);
             game.activeEnemies.splice(game.activeEnemies.indexOf(node),1);
-            node.setPosition(-100,-100);
+            node.setPosition(-100,-100,3);
             node.requestUpdate(node.newEnemyComponent.id);
-            console.log('done ran for node ',node._id)
         },
         onMount: function (node){
             this.id = node.addComponent(this);
@@ -432,7 +405,7 @@ function addEnemyComponent(newEnemy){
                         this.done(this.node);
                     }
                 }else{
-                    this.node.setPosition(spherePosition.x,spherePosition.y);
+                    this.node.setPosition(spherePosition.x,spherePosition.y,3);
                     this.node.requestUpdate(this.id);
                 }
             }
@@ -470,19 +443,19 @@ function setEnemyInMotion(newEnemy){
     var sidesOps = [1,2,3,4];
     var sideOp = sidesOps[Math.floor(Math.random()*sidesOps.length)];
     if(sideOp == 1){
-        newEnemy.setPosition(gameSize[0],Math.round(Math.random() * gameSize[1]),2);
+        newEnemy.setPosition(gameSize[0],Math.round(Math.random() * gameSize[1]),3);
         newEnemy.sphere.setPosition(gameSize[0],Math.round(Math.random() * gameSize[1]),0);
         newEnemy.name = "right";
     }else if(sideOp == 2){
-        newEnemy.setPosition(-size,Math.round(Math.random() * gameSize[1]),2);
+        newEnemy.setPosition(-size,Math.round(Math.random() * gameSize[1]),3);
         newEnemy.sphere.setPosition(-size,Math.round(Math.random() * gameSize[1]),0)
         newEnemy.name = "left";
     }else if(sideOp == 3){
-        newEnemy.setPosition(Math.round(Math.random() * gameSize[0]),gameSize[1],2);
+        newEnemy.setPosition(Math.round(Math.random() * gameSize[0]),gameSize[1],3);
         newEnemy.sphere.setPosition(Math.round(Math.random() * gameSize[0]),gameSize[1],0)
         newEnemy.name = "bottom";
     }else if(sideOp == 4){
-        newEnemy.setPosition(Math.round(Math.random() * gameSize[0]),-size,2);
+        newEnemy.setPosition(Math.round(Math.random() * gameSize[0]),-size,3);
         newEnemy.sphere.setPosition(Math.round(Math.random() * gameSize[0]),-size,0)
         newEnemy.name = "top";
     }
@@ -539,7 +512,7 @@ function setEnemyInMotion(newEnemy){
     if(!game.inactive){
         game.inactive = gameEnemies._children.filter(returnEnemy);
     }else {
-        game.inactive.filter(returnEnemy);
+        game.inactive = game.inactive.filter(returnEnemy);
     }
     function returnEnemy(gameEnemy) {
         if(gameEnemy != newEnemy)
@@ -553,9 +526,7 @@ function setEnemyInMotion(newEnemy){
     }, timing);
 }
 function addEnemyUtil(){
-    loadingScreen('start');
-    //                           93     94      95      96        97      98         99     100
-    var colors = ['red','black','blue','grey','green','yellow','orange','purple','violet','gainsboro'];
+    var colors = ['black','red','blue','grey','green','yellow','orange','purple','violet','gainsboro'];
     for(var x = 0; x < 100; x++){
         if(gameEnemies.createEnemiesComponent){
             gameEnemies.removeComponent(gameEnemies.createEnemiesComponent);
@@ -584,8 +555,6 @@ function addEnemyUtil(){
             addEnemy(color);
         }
     }
-    loadingScreen('end');
-
 }
 function followAction(){
     if(!game.boxNode.box){
@@ -837,40 +806,40 @@ function collisionDetection(){
                 if(constraint
                 && constraint.contactManifoldTable.collisionMatrix.hasOwnProperty(0)){
                     resetBody(game.boxNode.box);
-                    if(constraint.targets[1].node.DOMElement && !constraint.detected){
-                        constraint.detected = true;
+                    if(constraint.targets[1].node.DOMElement){
                         enemy = constraint.targets[1].node;
                         enemyType = enemy.DOMElement._styles.background;
                         enemy.newEnemyComponent.done(enemy);
-                        if(enemyType == 'black'){
-                            var score = enemy._size
-                            updateScore(score);
-                        }else if(enemyType == 'red'){
-                            if(!game.invincible && game.lives == 1){
-                                //gameOver();
-                            }else if (!game.invincible){
-                                game.emit('manageLives',{'life':-1});
+                        if(!constraint.detected){
+                            constraint.detected = true;
+                            if(enemyType == 'black'){
+                                var score = enemy._size
+                                updateScore(score);
+                            }else if(enemyType == 'red'){
+                                if(!game.invincible && game.lives == 1){
+                                    gameOver();
+                                }else if (!game.invincible){
+                                    game.emit('manageLives',{'life':-1});
+                                }
+                            }else if(enemyType == 'blue'){
+                                setInvincible();
+                            }else if(enemyType == 'grey'){
+                                setSlowTime();
+                            }else if (enemyType == 'green') {
+                                game.teir_reducer += 2;
+                            }else if (enemyType == 'yellow') {
+                                game.speed_reducer += 10;
+                            }else if (enemyType == 'orange') {
+                                updateScore(1000);
+                            }else if (enemyType == 'purple') {
+                                game.emit('manageLives',{'life':1});
+                            }else if (enemyType == 'violet') {
+                                //magenetic
+                            }else if (enemyType == 'gainsboro') {
+                                //warp
                             }
-                        }else if(enemyType == 'blue'){
-                            setInvincible();
-                        }else if(enemyType == 'grey'){
-                            setSlowTime();
-                        }else if (enemyType == 'green') {
-                            game.teir_reducer += 2;
-                        }else if (enemyType == 'yellow') {
-                            game.speed_reducer += 10;
-                        }else if (enemyType == 'orange') {
-                            updateScore(1000);
-                        }else if (enemyType == 'purple') {
-                            game.emit('manageLives',{'life':1});
-                        }else if (enemyType == 'violet') {
-                            //magenetic
-                        }else if (enemyType == 'gainsboro') {
-                            //warp
                         }
                     }
-                }else {
-                    this;
                 }
             }
             world.update(time);
@@ -918,7 +887,6 @@ function loadingScreen(oper){
             onUpdate: function(time) {
             }
         });
-        //loadingNode.requestUpdate(loadingNodeComponentID);
     }else if (oper == 'end'){
         gameUI.removeChild(game.loading);
     }
