@@ -25,6 +25,7 @@ var game = theScene.addChild();
 game.name = "game";
 game.dispatch = Dispatch;
 var gameUI = game.addChild();
+
 gameUI.name = "gameUI";
 var gameSize = game.getSize();
 var gameEnemies;
@@ -817,7 +818,7 @@ function collisionDetection(){
                                 updateScore(score);
                             }else if(enemyType == 'red'){
                                 if(!game.invincible && game.lives == 1){
-                                    gameOver();
+                                    //gameOver();
                                 }else if (!game.invincible){
                                     game.emit('manageLives',{'life':-1});
                                 }
