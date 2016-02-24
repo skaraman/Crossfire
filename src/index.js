@@ -77,7 +77,7 @@ game.onReceive = function(event, payload) {
             followAction();
         }
     }
-}
+};
 createBoxNode();
 createStartButtonNode();
 function initGame() {
@@ -121,12 +121,11 @@ function initGame() {
                 this.node.requestUpdate(this.id);
         },
         onUpdate: function() {
-            loadingScreen('start');
             if(this.active != true){
-                addEnemyUtil();
-                setEnemyInMotion(gameEnemies._children[0]);
-                collisionDetection();
+                loadingScreen('start');
                 this.active = true;
+                collisionDetection();
+                addEnemyUtil();
                 game.emit('sequence_timed',{looping:true});
                 loadingScreen('end');
             }
@@ -150,6 +149,7 @@ function initGame() {
     game.score = 0;
     resetBody(game.boxNode.box);
     game.gameLivesNode = gameUI.addChild();
+    game.gameLivesNode.name = 'gameLivesNode';
     game.gameLivesNode.gameLivesComponent = {
         id:null,
         node:null,
@@ -179,7 +179,7 @@ function createStartButtonNode() {
         .setPosition(-120,-30);
     startButtonNode.DOMElement = new DOMElement(startButtonNode);
     startButtonNode.DOMElement.setProperty('font-size','46px')
-        .setContent('Start Game');
+        .setContent('Start Game 1');
     var startComponent = {
         id: null,
         node: null,
@@ -242,8 +242,9 @@ function createBoxNode() {
             if(game.started == true){
                 boxNode.setAlign(0,0)
             }
-            var currentPos = boxNode.box.getPosition();
-            boxNode.setPosition(currentPos.x,currentPos.y,10000);
+            var boxPosition = boxNode.box.getPosition();
+            boxNode.setPosition(boxPosition.x, boxPosition.y, 10000);
+            // rotation has to be set via quaternion
             boxNode.requestUpdate(this.id);
         }
     });
@@ -345,7 +346,7 @@ function addAnimationComponent(char){
     };
     char.addComponent(myComponent);
 }
-function addEnemy(color){
+function addEnemy(color, speed, timing){
     var newEnemy = gameEnemies.addChild();
     newEnemy.name = "";
     var sizes = [30,40,50,60];
@@ -368,7 +369,7 @@ function addEnemy(color){
     newEnemy.sphere = new Sphere({
         mass: 1,
         radius: size/2,
-        position:new Vec3(newEnemyPosition[0],newEnemyPosition[1]),
+        position:new Vec3(newEnemyPosition[0],newEnemyPosition[1],-100),
         restitution: 0,
         friction: 0
     });
@@ -378,20 +379,31 @@ function addEnemy(color){
         new Collision([game.boxNode.box,newEnemy.sphere],{restitution:0})
     );
     resetBody(newEnemy.sphere);
-    addEnemyComponent(newEnemy)
+    addEnemyComponent(newEnemy);
+    setEnemyInMotion(newEnemy, speed, timing);
 }
 function addEnemyComponent(newEnemy){
     newEnemy.newEnemyComponent = {
         id: null,
         node: null,
         done: function(node){
+            if(node in node._updater._updateQueue)
+                FamousEngine._updateQueue.splice(node._updater._updateQueue.indexOf(node), 1);
+            if(node._updateQueue && node._updateQueue.length)
+                node._updateQueue = [];
+            if(node._nextUpdateQueue && node._nextUpdateQueue.length)
+                node._nextUpdateQueue = [];
+            game.world.remove(node.collision);
+            game.world.remove(node.sphere);
+            game.activeEnemies.splice(game.activeEnemies.indexOf(node),1);
+            node.dismount();
+            resetBody(game.boxNode.box);
+            /*
             node.sphere.setPosition(-100,-100,-100);
             resetBody(node.sphere);
-            resetBody(game.boxNode.box);
-            game.inactive.push(node);
-            game.activeEnemies.splice(game.activeEnemies.indexOf(node),1);
             node.setPosition(-100,-100,3);
             node.requestUpdate(node.newEnemyComponent.id);
+            */
         },
         onMount: function (node){
             this.id = node.addComponent(this);
@@ -414,35 +426,11 @@ function addEnemyComponent(newEnemy){
     };
     newEnemy.addComponent(newEnemy.newEnemyComponent);
 }
-function setEnemyInMotion(newEnemy){
+function setEnemyInMotion(newEnemy, speed, timing){
     game.activeEnemies.push(newEnemy);
-    var size = newEnemy._size,
-        newEnemyPosition = newEnemy._position;
-    var timings_teirs = [[500,1000],[400,700],[300,500],[200,400],[100,250],[50,125]];
-    var speed_range = [200,300];
-    var speed = Math.floor(
-        (Math.floor(Math.random()*(speed_range[1]-speed_range[0]))+speed_range[0])
-        + (Math.floor(Math.random()*(game.score+1))/ game.speed_reducer)
-    );
-    game.timing_teir_i=0;
-    if ((game.score/game.teir_reducer) < 200 ){
-        game.timing_teir_i=0
-    }else if ((game.score/game.teir_reducer)< 400 ) {
-        game.timing_teir_i=1;
-    }else if ((game.score/game.teir_reducer)< 800) {
-        game.timing_teir_i=2;
-    }else if ((game.score/game.teir_reducer)< 1600) {
-        game.timing_teir_i=3;
-    }else if ((game.score/game.teir_reducer)< 2400) {
-        game.timing_teir_i=4;
-    }else if ((game.score/game.teir_reducer)>= 2400) {
-        game.timing_teir_i=5;
-    }
-    var timing_teir = timings_teirs[game.timing_teir_i];
-    var timing = Math.floor(Math.random()*(timing_teir[1] - timing_teir[0])) + timing_teir[0];
-
     var sidesOps = [1,2,3,4];
     var sideOp = sidesOps[Math.floor(Math.random()*sidesOps.length)];
+    var size = newEnemy._size;
     if(sideOp == 1){
         newEnemy.setPosition(gameSize[0],Math.round(Math.random() * gameSize[1]),3);
         newEnemy.sphere.setPosition(gameSize[0],Math.round(Math.random() * gameSize[1]),0);
@@ -461,6 +449,7 @@ function setEnemyInMotion(newEnemy){
         newEnemy.name = "top";
     }
     var diag = Math.random() < 0.5 ? true : false;
+    var newEnemyPosition = newEnemy.getPosition();
     if(newEnemy.name == "left"){
         if(diag == true){
             if(newEnemyPosition[1]> (gameSize[1]/2)){
@@ -510,51 +499,61 @@ function setEnemyInMotion(newEnemy){
             newEnemy.sphere.setVelocity(0,-speed);
         }
     }
-    if(!game.inactive){
-        game.inactive = gameEnemies._children.filter(returnEnemy);
-    }else {
-        game.inactive = game.inactive.filter(returnEnemy);
-    }
-    function returnEnemy(gameEnemy) {
-        if(gameEnemy != newEnemy)
-            return gameEnemy;
-    }
-    var ran = Math.random()
-    var x = Math.floor(ran*game.inactive.length);
     newEnemy.requestUpdate(newEnemy.newEnemyComponent.id);
     FamousEngine.getClock().setTimeout(function(){
-         setEnemyInMotion(game.inactive[x]);
+         addEnemyUtil();
     }, timing);
 }
 function addEnemyUtil(){
     var colors = ['black','red','blue','grey','green','yellow','orange','purple','violet','gainsboro'];
-    for(var x = 0; x < 100; x++){
-        if(gameEnemies.createEnemiesComponent){
-            gameEnemies.removeComponent(gameEnemies.createEnemiesComponent);
+    var ran = Math.random();
+    var cap = 92;
+    if (game.score > 699) cap = 100;
+    var x = Math.floor(ran*cap);
+    if (game.over == false) {
+        var color = colors[0];
+        if (x > 46 && x < 93) {
+            color=colors[1];
+        }else if (x == 93){
+            color=colors[2];
+        }else if (x == 94) {
+            color=colors[3];
+        }else if (x == 95){
+            color=colors[4];
+        }else if (x == 96){
+            color=colors[5];
+        }else if (x == 97){
+            color=colors[6];
+        }else if (x == 98){
+            color=colors[7];
+        }else if (x == 99){
+            color=colors[8];
+        }else if (x == 100){
+            color=colors[9];
         }
-        if (game.over == false) {
-            var color = colors[0];
-            if (x > 46 && x < 93) {
-                color=colors[1];
-            }else if (x == 93){
-                color=colors[2];
-            }else if (x == 94) {
-                color=colors[3];
-            }else if (x == 95){
-                color=colors[4];
-            }else if (x == 96){
-                color=colors[5];
-            }else if (x == 97){
-                color=colors[6];
-            }else if (x == 98){
-                color=colors[7];
-            }else if (x == 99){
-                color=colors[8];
-            }else if (x == 100){
-                color=colors[9];
-            }
-            addEnemy(color);
+        var timings_teirs = [[500,1000],[400,700],[300,500],[200,400],[100,250],[50,125]];
+        var speed_range = [200,300];
+        var speed = Math.floor(
+            (Math.floor(Math.random()*(speed_range[1]-speed_range[0]))+speed_range[0])
+            + (Math.floor(Math.random()*(game.score+1))/ game.speed_reducer)
+        );
+        game.timing_teir_i=0;
+        if ((game.score/game.teir_reducer) < 200 ){
+            game.timing_teir_i=0
+        }else if ((game.score/game.teir_reducer)< 400 ) {
+            game.timing_teir_i=1;
+        }else if ((game.score/game.teir_reducer)< 800) {
+            game.timing_teir_i=2;
+        }else if ((game.score/game.teir_reducer)< 1600) {
+            game.timing_teir_i=3;
+        }else if ((game.score/game.teir_reducer)< 2400) {
+            game.timing_teir_i=4;
+        }else if ((game.score/game.teir_reducer)>= 2400) {
+            game.timing_teir_i=5;
         }
+        var timing_teir = timings_teirs[game.timing_teir_i];
+        var timing = Math.floor(Math.random()*(timing_teir[1] - timing_teir[0])) + timing_teir[0];
+        addEnemy(color, speed, timing);
     }
 }
 function followAction(){
@@ -779,11 +778,9 @@ function resetBody(body){
     body.orientation = new Quaternion(1,0,0,0);
     body.velocity = new Vec3(0,0,0);
     body.torque = new Vec3(0,0,0);
-
     body.inverseInertia = new Mat33([1,0,0,0,1,0,0,0,1]);
     body.localInertia = new Mat33([1,0,0,0,1,0,0,0,1]);
     body.localInverseInertia = new Mat33([1,0,0,0,1,0,0,0,1]);
-
     body.restitution = 0;
     body.friction = 0;
 }
@@ -849,7 +846,7 @@ function collisionDetection(){
     };
     gameEnemies.collisionComponent = collisionComponent;
     gameEnemies.addComponent(collisionComponent);
-    gameEnemies.requestUpdate(gameEnemies.createEnemiesComponent.id);
+    gameEnemies.requestUpdate(collisionComponent.id);
 }
 function loadingScreen(oper){
     if (oper == 'start'){
