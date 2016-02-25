@@ -180,4 +180,4 @@ Framedata.prototype.init = function init() {
     return this;
 };
 
-module.exports = new Framedata();
+var frameData = new Framedata();
