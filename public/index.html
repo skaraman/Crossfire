@@ -43,13 +43,27 @@
                 -ms-user-select: none !important;       /* IE/Edge */
                 user-select: none !important;           /* non-prefixed version, currently*/
             }
-            body canvas:nth-child(3){
+            body canvas:nth-of-type(2){
                 zoom:50%;
+            }
+            #fps{
+                position: absolute;
+                z-index: 10000;
+                top:0;
+                left:0;
+                padding: 5px;
+                width: 15px;
+                height: 10px;
+                font: normal 8px verdana !important;
+                color: white;
+                background: black;
+                opacity: 0.7;
             }
         </style>
 
     </head>
     <body>
+        <div id="fps"></div>
         <script src="tied.js"></script>
     </body>
 </html>

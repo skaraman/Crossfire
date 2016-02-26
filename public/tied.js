@@ -39102,15 +39102,15 @@ function Start() {
 				.drawRect(0, ((window.innerHeight/2)-5)-30, window.innerWidth+1, 60)
 				.endFill()
 	};
-	var bodies = [];
-	bodies.push(ground.body);
+	//var bodies = [];
+	//bodies.push(ground.body);
 	var renderer = new PIXI.CanvasRenderer(window.innerWidth, (window.innerHeight/2)-5,{
 		backgroundColor : 0x1099bb,
 		//antialias: true,
 		resolution: res
 
 	});
-	renderer.roundPixels = true;
+	//renderer.roundPixels = true;
 
 	var stage = new PIXI.Container();
 	stage.updateLayersOrder = function () {
@@ -39124,6 +39124,7 @@ function Start() {
 	ground.sprite.zIndex = 5;
 	stage.addChild(ground.sprite)
 	stage.updateLayersOrder();
+	World.add(engine.world,ground.body);
 	var texture = PIXI.Texture.fromImage('./images/bunny.png');
 	var bunnies = [];
 	function SpriteObject() {
@@ -39133,8 +39134,8 @@ function Start() {
 		bunny.position.x = 200;
 		bunny.position.y = 150;
 		bunny.zIndex = 5;
-		stage.addChild(bunny);
-		stage.updateLayersOrder();
+		//stage.addChild(bunny);
+		//stage.updateLayersOrder();
 		return bunny;
 	};
 	function PhysicsObject() {
@@ -39145,7 +39146,7 @@ function Start() {
 		var box = Bodies.rectangle(x, y, 27, 28);
 		Body.setAngularVelocity(box, 0.1)
 		//Body.applyForce(box, {x:x,y:y},{x:1,y:1});
-		bodies.push(box);
+		//bodies.push(box);
 		return box;
 	};
 	var createBunny = function() {
@@ -39154,7 +39155,7 @@ function Start() {
 			sprite: SpriteObject()
 		};
 	};
-	for(var i=0; i < 300; i++) {
+	for(var i=0; i < 500; i++) {
 		bunnies.push(createBunny());
 	}
 
@@ -39199,15 +39200,25 @@ function Start() {
 	stage.updateLayersOrder();
 
 
-
+	var start_time = new Date().getTime()
 	animate();
 	function animate() {
+		var z = fps.getFPS();
+		document.querySelector("#fps").innerHTML = z;
+		console.log("fps: ",z,"bunnies: ",bunnies.length);
+		engine.a=engine.a?engine.a:0;
+		var len=bunnies.length;
+		if(engine.a>=len)engine.a=0;
+		stage.addChild(bunnies[engine.a].sprite);
+		stage.updateLayersOrder();
+		World.add(engine.world,bunnies[engine.a].body)
+		engine.a++;
 		requestAnimationFrame(animate);
 		for(var b in bunnies) {
 			var x = bunnies[b].body.position.x;
 			var y = bunnies[b].body.position.y;
-			x = Math.floor(x);
-			y = Math.floor(y);
+			//x = Math.floor(x);
+			//y = Math.floor(y);
 			bunnies[b].sprite.position.x = x;
 			bunnies[b].sprite.position.y = y;
 			//bunnies[b].sprite.rotation = Math.round(bunnies[b].body.angle* 10)/10;
@@ -39224,7 +39235,7 @@ function Start() {
 		renderer.render(stage);
 		//Engine.update(engine,1000/60,1);
 	}
-	World.add(engine.world, bodies);
+	//World.add(engine.world, bodies);
 	Engine.run(engine);
 
 	function onButtonDown(){
@@ -39256,4 +39267,19 @@ function Start() {
 
 
 }
+var fps = {
+	startTime : 0,
+	frameNumber : 0,
+	getFPS : function(){
+		this.frameNumber++;
+		var d = new Date().getTime(),
+		currentTime = ( d - this.startTime ) / 1000,
+		result = Math.floor( ( this.frameNumber / currentTime ) );
+		if( currentTime > 1 ){
+			this.startTime = new Date().getTime();
+			this.frameNumber = 0;
+		}
+		return result;
+	}
+};
 Start();
