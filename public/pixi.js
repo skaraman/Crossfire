@@ -10474,6 +10474,7 @@ function SystemRenderer(system, width, height, options)
      * @member {HTMLCanvasElement}
      */
     this.view = options.view || document.createElement('canvas');
+    this.view.setAttribute('id','c')
 
     /**
      * The resolution of the renderer
@@ -19031,7 +19032,7 @@ var utils = module.exports = {
             }
 
             var canvas = document.createElement('canvas'),
-                gl = canvas.getContext('webgl', contextOptions) || canvas.getContext('experimental-webgl', contextOptions);
+            gl = canvas.getContext('webgl', contextOptions) || canvas.getContext('experimental-webgl', contextOptions);
 
             return !!(gl && gl.getContextAttributes().stencil);
         }
@@ -24021,6 +24022,7 @@ InteractionManager.prototype.update = function (deltaTime)
 
     this.cursor = 'inherit';
 
+    //console.log(this.mouse.global);
     this.processInteractive(this.mouse.global, this.renderer._lastObjectRendered, this.processMouseOverOut, true );
 
     if (this.currentCursorStyle !== this.cursor)

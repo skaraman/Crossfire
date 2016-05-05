@@ -8542,7 +8542,7 @@ var Vector = require('../geometry/Vector');
             cssBackground = 'url(' + background + ')';
 
         render.canvas.style.background = cssBackground;
-        render.canvas.style.backgroundSize = "contain";
+        render.canvas.style.backgroundSize = "100%";
         render.currentBackground = background;
     };
 

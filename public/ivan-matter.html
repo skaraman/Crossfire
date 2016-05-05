@@ -1,0 +1,172 @@
+
+<html>
+<head>
+	<style>#fps{
+		position: absolute;
+		z-index: 10000;
+		top:0;
+		left:0;
+		padding: 5px;
+		width: auto;
+		height: 10px;
+		font: normal 8px verdana !important;
+		color: white;
+		background: none;
+		opacity: 0.7;
+	}</style>
+	<script type="text/javascript" src="tied-m.js"></script>
+
+</head>
+<body>
+	<div id="fps"></div>
+	<canvas id="c"></canvas>
+	<script type="text/javascript">
+		var Engine = Matter.Engine,
+			World = Matter.World,
+			Bodies = Matter.Bodies,
+			Body = Matter.Body,
+			Vector = Matter.Vector,
+			world,
+			bodies = [],	// instances of b2Body (from Box2D)
+			actors = [],	// instances of Bitmap (from IvanK)
+			up,
+			res = window.devicePixelRatio;
+		function Start(){
+			function Animate(){
+				// callbacks are funcions that are run on every
+				// animate update, things like collision detection,
+				// moving pieces, etc belong here, use the addCallback and destroyCallback
+				// proto functions to manipulate this array
+				this.callbacks = [updateEnemyByBody];
+			}
+			Animate.prototype.animate = function animate(e){
+				var z = fps.getFPS();
+				if(document.querySelector("#fps"))
+					document.querySelector("#fps").innerHTML = z;
+				if(animator.callbacks){
+					for(var c in animator.callbacks){
+						animator.callbacks[c]();
+					}
+				}
+				//IvanK.js Event.ENTER_FRAME takes care of calling the next frame update ;)
+			}
+			Animate.prototype.addCallback = function addCallback(callback) {
+				this.callbacks.push(callback);
+			}
+			Animate.prototype.destroyCallback = function destroyCallback(callback){
+				this.callbacks.splice(this.callbacks.indexOf(callback),1);
+			}
+
+			var stage = new Stage("c", {w:window.innerWidth,h:window.innerHeight/2});
+			var animator = new Animate();
+			document.stage = stage;
+			stage.addEventListener(Event.ENTER_FRAME, animator.animate);
+
+			// background
+			var bg = new Bitmap( new BitmapData("images/winter2.jpg") );
+			bg.scaleX = bg.scaleY = stage.stageHeight/512;
+			stage.addChild(bg);
+
+
+			var matterRender = {render: {element: document.body,controller: Matter.Render,options: {width:window.innerWidth,height:(window.innerHeight/2)}}}
+			var engine = Engine.create(matterRender);
+			engine.enableSleeping = true;
+			engine.world.gravity.scale = 0.001;
+			up = Vector.create(0, -0.02);
+
+			// I decided that 1 meter = 100 pixels
+
+			// create ground
+			var ground = Bodies.rectangle(
+				(stage.stageWidth/res)/2, (stage.stageHeight/res)+5, (stage.stageWidth/res), 10, { isStatic: true}
+			);
+			World.add(engine.world, ground);
+			// left wall
+			var leftWall = Bodies.rectangle(
+				-5, (stage.stageHeight/res)/2, 10, (stage.stageHeight/res), { isStatic: true}
+			);
+			World.add(engine.world, leftWall);
+			// right wall
+			var rightWall = Bodies.rectangle(
+				(stage.stageWidth/res)+5, (stage.stageHeight/res)/2, 10,  (stage.stageHeight/res), { isStatic: true}
+			);
+			World.add(engine.world, rightWall);
+
+			Engine.run(engine);
+			// both images are 200 x 200 px
+			var bxBD = new BitmapData("images/box.jpg");
+			var blBD = new BitmapData("images/bigball.png");
+
+			// let's add 25 boxes and 25 balls!
+			for(var i = 0; i < 50; i++){
+				var hw = 0.1 + Math.random()*0.45;	// "half width"
+				var hh = 0.1 + Math.random()*0.45;	// "half height"
+				var x = Math.random()*((stage.stageWidth/res));
+				var y = -5 + Math.random()*5;
+
+
+				var body;
+				if(i<25) body = Bodies.rectangle(x,y,(hw*200)/res,(hh*200)/res);// box
+				else     body = Bodies.circle(x,y,(hw*100/res));	// ball
+
+				body.mass = 1;
+				bodies.push(body);
+				World.add(engine.world,body);
+
+				var bm = new Bitmap(i<25 ? bxBD : blBD);  bm.x = bm.y = -100;
+				var actor = new Sprite();  actor.addChild(bm);
+				if(i<25) { actor.scaleX = hw;  actor.scaleY = hh; }
+				else     { actor.scaleX = actor.scaleY = hw;      }
+
+				actor.addEventListener(MouseEvent.MOUSE_MOVE, Jump);
+				stage.addChild(actor);
+				actors.push(actor);
+			}
+		}
+
+		function updateEnemyByBody(){
+			for(var i=0; i<actors.length; i++){
+				var body  = bodies[i];
+				var actor = actors [i];
+				var p = body.bounds.min;
+				if(body.label == "Rectangle Body"){
+					var hw = Math.abs(body.bounds.min.x - body.bounds.max.x)/2;
+					var hh = Math.abs(body.bounds.min.y - body.bounds.max.y)/2;
+					actor.x = (p.x+hw)*res;	// updating actor
+					actor.y = (p.y+hh)*res;
+				}else{
+					var r = body.circleRadius;
+					actor.x = (p.x+r)*res;	// updating actor
+					actor.y = (p.y+r)*res;
+				}
+				actor.rotation = body.angle*180/Math.PI;
+			}
+		}
+
+		function Jump(e){
+			console.log('jump!')
+			var a = e.currentTarget;	// current actor
+			var i = actors.indexOf(a);
+			//  cursor might be over ball bitmap, but not over a real ball
+			if(i>=25 && Math.sqrt(a.mouseX*a.mouseX + a.mouseY*a.mouseY) > 100) return;
+			Body.applyForce(bodies[i], {x:bodies[i].position.x,y:bodies[i].position.y+1}, up);
+		}
+		var fps = {
+			startTime : 0,
+			frameNumber : 0,
+			getFPS : function(){
+				this.frameNumber++;
+				var d = new Date().getTime(),
+				currentTime = ( d - this.startTime ) / 1000,
+				result = Math.floor( ( this.frameNumber / currentTime ) );
+				if( currentTime > 1 ){
+					this.startTime = new Date().getTime();
+					this.frameNumber = 0;
+				}
+				return result;
+			}
+		};
+		Start();
+	</script>
+</body>
+</html>
