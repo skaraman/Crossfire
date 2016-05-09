@@ -12856,12 +12856,14 @@ function Start() {
 	var animator = new Animate();
 	stage.addEventListener(Event.ENTER_FRAME, animator.animate);
 	//bg
-	var bmD = new BitmapData('./images/bg.png')
+	var bmD = new BitmapData('./images/space.png')
 	var s = new Sprite();
 	gameVars.bg = s;
 	s.graphics.beginBitmapFill(bmD);
 	s.graphics.drawRect(0,0,gameSize.w*2,gameSize.h*2);
-	s.scaleY = s.scaleX = res/2;
+	//s.graphics.drawRect(0,0,gameSize.w*2,gameSize.h*2);
+	s.scaleY = ((gameSize.h*2) / 300) * (res/2);
+	s.scaleX = ((gameSize.w*2) / 300) * (res/2);
 	s.zIndex = 100;
 	stage.addChild(s);
 	stage.updateLayersOrder()
@@ -12869,12 +12871,12 @@ function Start() {
 	gameVars.char.body = Bodies.rectangle( (gameSize.w/2), (gameSize.h/2), cS, cS, { isStatic: true});
 	gameVars.char.sprite =
 		(function(){
-			var texture = new BitmapData('./images/grid.png')
-			var bm = new MBitmap(texture, 6, 11);
+			var texture = new BitmapData('./images/astro_loop.png')
+			var bm = new MBitmap(texture, 3, 8);
 			bm.x = gameVars.char.body.vertices[0].x*res;
 			bm.y = gameVars.char.body.vertices[0].y*res;
-			bm.scaleX = bm.scaleY = (cS/(160/res));
-			bm.play();
+			bm.scaleX = bm.scaleY = (cS/(80/res));
+			//bm.play(6);
 			bm.w = cS*res;
 			bm.h = cS*res;
 			/*var sprite = new Sprite();
@@ -12892,7 +12894,9 @@ function Start() {
 	stage.addChild(gameVars.char.sprite);
 	stage.updateLayersOrder();
 
-	var scoreFormat = new TextFormat("Conductive", 30*res, 0x000000, false, false, 'center');
+
+
+	var scoreFormat = new TextFormat("Conductive", 30*res, 0xFFFFFF, false, false, 'center');
 	gameVars.scoreView = new TextField();
 	gameVars.scoreView.selectable = false;
 	gameVars.scoreView.setTextFormat(scoreFormat);
@@ -12921,10 +12925,25 @@ function Start() {
 	createStartButton();
 	function initGame(){
 		stage.removeChild(gameVars.startButton);
+
+		gameVars.gameLives = new Sprite();
+		var livesBD = new BitmapData('./images/life.png')
+		var h = 26;
+		var w = 25 * gameVars.lives;
+		var livesBM = new Bitmap(livesBD);
+		gameVars.gameLives.addChild(livesBM);
+		gameVars.gameLives.x = (gameSize.w/2) - 20;
+		gameVars.gameLives.y = 10;
+		gameVars.gameLives.scaleX = (20/(w/res));
+		gameVars.gameLives.scaleY = (20/(h/res));
+		gameVars.gameLives.zIndex = 10;
+		stage.addChild(gameVars.gameLives);
+		stage.updateLayersOrder();
 		addEnemyUtil();
 		animator.addCallback(checkForBFR);
 		Events.on(mouse, 'mousemove', positionChar);
 		animator.addCallback(updateOne);
+		gameVars.char.sprite.gotoAndLoop(9 , 22, 5);
 	}
 	// collision detection in PE
 	Events.on(engine, 'collisionStart', function(event) {
@@ -13033,52 +13052,53 @@ function Start() {
 		var colors = [],
 			ran = Math.random(),
 			x = Math.floor(ran*100);
-		gameVars.texture = new BitmapData('./images/bunny.png');
-		var w = 26;
-		var h = 37;
+		gameVars.texture = new BitmapData('./images/rock.png');
+		var w = 105;
+		var h = 105;
 		if(gameVars.score < 699){
 			var color = 'red';
 			if (x > 50) {
 				color='black';
-				gameVars.texture = new BitmapData('./images/bigball.png');
-				w = 200;
-				h = 200;
+				gameVars.texture = new BitmapData('./images/star.png');
+				w = 105;
+				h = 105;
 			}
 		}else{
 			colors = ['red','black','blue','grey','green','yellow','orange','purple'];
+			color = colors[0];
 			if (x > 47 && x < 94) {
 				color=colors[1];
-				gameVars.texture = new BitmapData('./images/bigball.png');
+				gameVars.texture = new BitmapData('./images/star.png');
 				w = 200;
 				h = 200;
 			}else if (x == 95){
 				color=colors[2];
-				gameVars.texture = new BitmapData('./images/bigball_b.png');
+				gameVars.texture = new BitmapData('./images/star_b.png');
 				w = 200;
 				h = 200;
 			}else if (x == 96) {
 				color=colors[3];
-				gameVars.texture = new BitmapData('./images/bigball_g.png');
+				gameVars.texture = new BitmapData('./images/star_g.png');
 				w = 200;
 				h = 200;
 			}else if (x == 97){
 				color=colors[4];
-				gameVars.texture = new BitmapData('./images/bigball_grn.png');
+				gameVars.texture = new BitmapData('./images/star_grn.png');
 				w = 200;
 				h = 200;
 			}else if (x == 98){
 				color=colors[5];
-				gameVars.texture = new BitmapData('./images/bigball_y.png');
+				gameVars.texture = new BitmapData('./images/star_y.png');
 				w = 200;
 				h = 200;
 			}else if (x == 99){
 				color=colors[6];
-				gameVars.texture = new BitmapData('./images/bigball_oj.png');
+				gameVars.texture = new BitmapData('./images/star_oj.png');
 				w = 200;
 				h = 200;
 			}else if (x == 100){
 				color=colors[7];
-				gameVars.texture = new BitmapData('./images/bigball_p.png');
+				gameVars.texture = new BitmapData('./images/star_p.png');
 				w = 200;
 				h = 200;
 			}
@@ -13228,7 +13248,7 @@ function Start() {
 		animator.destroyCallback(checkForBFR);
 	    gameVars.over = true;
 
-	    var gameOverFormat = new TextFormat("Conductive", 30*res, 0x000000, false, false, 'left');
+	    var gameOverFormat = new TextFormat("Conductive", 30*res, 0xFFFFFF, false, false, 'left');
 		gameVars.gameOverView = new TextField();
 		gameVars.gameOverView.selectable = false;
 		gameVars.gameOverView.setTextFormat(gameOverFormat);
@@ -13241,7 +13261,7 @@ function Start() {
 		stage.addChild(gameVars.gameOverView);
 		stage.updateLayersOrder();
 
-		createStartButton();
+		createStartButton('restart');
 		gameVars.scoreView.y = (gameSize.h/2)*res;
 	    gameVars.started = false;
 		Events.off(mouse,'mousemove', positionChar);
@@ -13259,11 +13279,12 @@ function Start() {
 	        window.localStorage.high_score = gameVars.score;
 	}
 	function createStartButton() {
-	    var startButtonFormat = new TextFormat("Conductive", 30*res, 0x000000, false, false, 'left');
+	    var startButtonFormat = new TextFormat("Conductive", 30*res, 0xFFFFFF, false, false, 'left');
 		gameVars.startButtonView = new TextField();
 		gameVars.startButtonView.selectable = false;
 		gameVars.startButtonView.setTextFormat(startButtonFormat);
-		gameVars.startButtonView.text = "Start Game";
+		if (arguments.length > 0) gameVars.startButtonView.text = "Restart";
+		else gameVars.startButtonView.text = "Start Game";
 		gameVars.startButtonView.x = (gameSize.w/2-((gameVars.startButtonView._textW/res)/2))*res;
 		gameVars.startButtonView.y = (gameSize.h/2 + 100)*res;
 		gameVars.startButtonView.width = gameVars.startButtonView._textW;
@@ -13281,6 +13302,162 @@ function Start() {
 		else{
 			initGame();
 		}
+	}
+	function manageLives(gameLivesComponent, op) {
+		game.lives += op;
+		if(op == 1 && game.lives <= 3){
+		    var i = game.lives;
+		    var newLifeNode = game.gameLivesNode.addChild();
+		    newLifeNode.setSizeMode('absolute','absolute')
+		        .setAbsoluteSize(40,40)
+		        .setAlign(0.5,0.5)
+		        .setPosition((-120)+(40*i),0,1);
+		    newLifeNode.DOMElement = new DOMElement(newLifeNode);
+		    newLifeNode.DOMElement.setProperty('background-color','green')
+		        .setProperty('opacity','0.4')
+		        .setProperty('padding','5px 0px');
+		}else if(op == -1 && gameLivesComponent.node._children[gameLivesComponent.node._children.length-1] != null) {
+		    gameLivesComponent.node._children[gameLivesComponent.node._children.length-1].dismount();
+		    gameLivesComponent.node._children.splice(gameLivesComponent.node._children.length - 1,1)
+		}
+		if(game.lives > 3)game.lives = 3;
+	}
+	function setSlowTime() {
+	    if(!game.slowTime){
+	        game.slowTime = true;
+	        var slowTimeBarTimerNode = gameUI.addChild();
+	        game.slowTimeBarTimerNode = slowTimeBarTimerNode;
+	        slowTimeBarTimerNode.name = "slowTimeBarTimerNode";
+	        slowTimeBarTimerNode.setSizeMode('relative','absolute')
+	            .setAbsoluteSize(null,10)
+	            .setProportionalSize(0.9,null)
+	            .setAlign(0.5,0);
+	        slowTimeBarTimerNode.setPosition(-(Math.floor((gameSize[0] * .9)/2)),120,1);
+	        slowTimeBarTimerNode.DOMElement = new DOMElement(slowTimeBarTimerNode);
+	        slowTimeBarTimerNode.DOMElement
+	            .setProperty('background-color','black')
+	            .setProperty('opacity','0.5');
+	        slowTimeBarTimerNode.slowTimeBarTimerComponent = {
+	            id:null,
+	            node:null,
+	            startTime:null,
+	            done: function(node){
+	                if(node in node._updater._updateQueue)
+	                    FamousEngine._updateQueue.splice(node._updater._updateQueue.indexOf(node), 1);
+	                if(node._updateQueue && node._updateQueue.length)
+	                    node._updateQueue = [];
+	                if(node._nextUpdateQueue && node._nextUpdateQueue.length)
+	                    node._nextUpdateQueue = [];
+	                node.dismount();
+	                delete game.slowTime;
+	                delete game.slowTimeBarTimerNode.DOMElement;
+	                for(var i=0; i< gameEnemies._children.length; i++){
+	                    if(gameEnemies._children[i] != null){
+	                        var veloArr = gameEnemies._children[i].sphere.velocity.toArray();
+	                        for(var j=0; j< veloArr.length; j++){
+	                            veloArr[j] = Math.floor(veloArr[j]*2);
+	                        }
+	                        gameEnemies._children[i].sphere.setVelocity(veloArr[0],veloArr[1],veloArr[2])
+	                    }
+	                }
+	            },
+	            onMount: function(node){
+	                this.id = node.addComponent(this);
+	                this.node = node;
+	            },
+	            onUpdate: function(time){
+	                if(this.startTime == null){
+	                    this.startTime = time;
+	                }
+	                else{
+	                    var diffTime = time - this.startTime;
+	                    if(diffTime > 3000){
+	                        this.done(this.node);
+	                    }
+	                    else {
+	                        var percentage = diffTime / 3000;
+	                        percentage = 0.9 * (1 - percentage)
+	                        this.node.setProportionalSize(percentage,null);
+	                    }
+	                }
+	                for(var i=0; i< gameEnemies._children.length; i++){
+	                    if(gameEnemies._children[i] != null && !gameEnemies._children[i].slowed){
+	                        var veloArr = gameEnemies._children[i].sphere.velocity.toArray();
+	                        for(var j=0; j< veloArr.length; j++){
+	                            veloArr[j] = Math.floor(veloArr[j]/2);
+	                        }
+	                        gameEnemies._children[i].sphere.setVelocity(veloArr[0],veloArr[1],veloArr[2])
+	                        gameEnemies._children[i].slowed = true;
+	                    }
+	                }
+	                this.node.requestUpdate(this.id);
+	            }
+	        }
+	        slowTimeBarTimerNode.addComponent(slowTimeBarTimerNode.slowTimeBarTimerComponent);
+	        slowTimeBarTimerNode.requestUpdate(slowTimeBarTimerNode.slowTimeBarTimerComponent.id);
+	    }else{
+	        game.slowTimeBarTimerNode.slowTimeBarTimerComponent.startTime = FamousEngine.getClock()._time;
+	    }
+	}
+	function setInvincible(){
+	    if(!game.invincible){
+	        game.invincible = true;
+	        var invincibleBarTimerNode = gameUI.addChild();
+	        game.invincibleBarTimerNode = invincibleBarTimerNode;
+	        invincibleBarTimerNode.name = "invincibleBarTimerNode";
+	        invincibleBarTimerNode.setSizeMode('relative','absolute')
+	            .setAbsoluteSize(null,10)
+	            .setProportionalSize(0.9,null)
+	            .setAlign(0.5,0);
+	        invincibleBarTimerNode.setPosition(-(Math.floor((gameSize[0] * .9)/2)),100,1);
+	        invincibleBarTimerNode.DOMElement = new DOMElement(invincibleBarTimerNode);
+	        invincibleBarTimerNode.DOMElement
+	                .setProperty('background-color','black')
+	                .setProperty('opacity','0.5');
+	        invincibleBarTimerNode.invincibleBarTimerComponent = {
+	            id:null,
+	            node:null,
+	            startTime:null,
+	            done: function(node){
+	                node.dismount();
+	                for(var i=0;i<FamousEngine._updateQueue.length;i++){
+	                    if(FamousEngine._updateQueue[i] == node){
+	                        FamousEngine._updateQueue.splice(i,1);
+	                        i--;
+	                        continue;
+	                    }
+	                }
+	                delete game.invincible;
+	                delete game.invincibleBarTimerNode.DOMElement;
+	            },
+	            onMount: function(node){
+	                this.id = node.addComponent(this);
+	                this.node = node;
+	            },
+	            onUpdate: function(time){
+	                if(this.startTime == null){
+	                    this.startTime = time;
+	                }
+	                else{
+	                    var diffTime = time - this.startTime;
+	                    if(diffTime > 3000){
+	                        this.done(this.node);
+	                    }
+	                    else {
+	                        var percentage = diffTime / 3000;
+	                        percentage = 0.9 * (1 - percentage)
+	                        this.node.setProportionalSize(percentage,null);
+	                    }
+	                }
+	                this.node.requestUpdate(this.id);
+	            }
+	        }
+	        invincibleBarTimerNode.addComponent(invincibleBarTimerNode.invincibleBarTimerComponent);
+	        invincibleBarTimerNode.requestUpdate(invincibleBarTimerNode.invincibleBarTimerComponent.id);
+	    }else{
+	        game.invincibleBarTimerNode.invincibleBarTimerComponent.startTime = FamousEngine.getClock()._time;
+	    }
+
 	}
 }
 var fps = {
@@ -13305,6 +13482,9 @@ function MBitmap(bd, rows, cols){
 	this.totalFrames = rows*cols;
 	this.currentFrame = 0;
  	this.isPlaying = false;
+	this.loop = false;
+	this.loopEnd = 0;
+	this.loopStart = 0;
 	// private
 	this._rows = rows;  this._cols = cols;
 	this._frames = [];
@@ -13340,6 +13520,16 @@ MBitmap.prototype.prevFrame = function(){
 MBitmap.prototype.gotoAndPlay = function(k,step){
 	this.gotoAndStop(k); this.play(step);
 }
+MBitmap.prototype.gotoAndLoop = function(k, d, step){
+	this.loop = true;
+	this.loopEnd = d;
+	this.loopStart = k;
+	this.loopStep = step;
+	if(this.currentFrame >= d || this.currentFrame < k){
+		this.gotoAndStop(k);
+		this.play(step);
+	}
+}
 // step == K :
 // animation frame will be displayed for K display frames (default is 1)
 MBitmap.prototype.play = function(step){
@@ -13349,9 +13539,13 @@ MBitmap.prototype.play = function(step){
 MBitmap.prototype.stop = function(){
 	this.isPlaying = false;
     this.removeEventListener(Event.ENTER_FRAME, this._ef);
+	if(this.loop && this.currentFrame == this.loopEnd)
+		this.gotoAndLoop(this.loopStart, this.loopEnd, this.loopStep)
 }
 MBitmap.prototype._ef=function(e){
-	if(this._time++%this._step==0) this.nextFrame();
+	if(this.loop && this.currentFrame == this.loopEnd)
+		this.stop()
+	else if(this._time++%this._step==0) this.nextFrame();
 }
 function storageAvailable(type) {
 	try {
