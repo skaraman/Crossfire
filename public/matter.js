@@ -4632,6 +4632,10 @@ var Body = require('../body/Body');
             if (body.isStatic || body.isSleeping)
                 continue;
 
+            if (gravity.isPoint === true) {
+                gravity = _calculateGravity(gravity, body.position);
+            }
+
             // apply gravity
             body.force.y += body.mass * gravity.y * gravityScale;
             body.force.x += body.mass * gravity.x * gravityScale;
@@ -4639,17 +4643,37 @@ var Body = require('../body/Body');
     };
 
     /**
-     * Applys `Body.update` to all given `bodies`.
-     * @method updateAll
-     * @private
-     * @param {body[]} bodies
-     * @param {number} deltaTime
-     * The amount of time elapsed between updates
-     * @param {number} timeScale
-     * @param {number} correction
-     * The Verlet correction factor (deltaTime / lastDeltaTime)
-     * @param {bounds} worldBounds
-     */
+    * Caluclates gravity based on point and body position
+    * @method calculateGravity
+    * @private
+    * @param {vector} point
+    * @param {vector} body position
+    * @return {vector} normalized gravity vector
+    */
+    var _calculateGravity = function(point, position) {
+    var x = point.x - position.x;
+    var y = point.y - position.y;
+
+    var length = Math.sqrt( x * x + y * y );
+
+        return {
+            x: x / length,
+            y: y / length
+        };
+    };
+
+    /**
+    * Applys `Body.update` to all given `bodies`.
+    * @method updateAll
+    * @private
+    * @param {body[]} bodies
+    * @param {number} deltaTime
+    * The amount of time elapsed between updates
+    * @param {number} timeScale
+    * @param {number} correction
+    * The Verlet correction factor (deltaTime / lastDeltaTime)
+    * @param {bounds} worldBounds
+    */
     var _bodiesUpdate = function(bodies, deltaTime, timeScale, correction, worldBounds) {
         for (var i = 0; i < bodies.length; i++) {
             var body = bodies[i];
