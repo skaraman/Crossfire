@@ -71,10 +71,24 @@
         </style>
     </head>
     <body>
-        <div id="preloadfont">.</div>
-        <div id="fps"></div>
-        <canvas id="c"></canvas>
-        <script>//var a;Math.random()>0.5?a=1:a=2;window.devicePixelRatio=a;console.log(a);</script>
-        <script src="wrapped.js"></script>
+        <script>
+            window.onload = init;
+            function init(){
+                var canvas, canvasContext2D, s, ss;
+                // Create a canvas and draw something in it.
+                canvas = document.createElement("canvas");
+                canvas.setAttribute('id','c');
+                canvasContext2D = canvas.getContext("webgl");
+                document.body.appendChild(canvas);
+                s=document.getElementsByTagName('script')[0];
+                ss=document.createElement('script');
+                ss.type='text/javascript';
+                ss.async=true;
+                ss.src= "compiled.js";
+                s.parentNode.insertBefore(ss,s);
+            };
+        </script>
+        <!--<canvas id="c"></canvas>-->
+        <!--<script src="compiled.js"></script>-->
     </body>
 </html>

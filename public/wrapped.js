@@ -12811,9 +12811,9 @@ var world;
 var gameVars = {};
 gameVars.bodies = [];	// instances of b2Body (from Box2D)
 gameVars.actors = [];	// instances of Bitmap (from IvanK)
-gameVars.up;
 gameVars.char = {};
 gameVars.fontLoader = 0;
+gameVars.circles = [];
 function Start() {
 	function Animate(){
 		// callbacks are funcions that are run on every
@@ -12972,7 +12972,6 @@ function Start() {
 		gameVars.highScoreView.setTextFormat(highScoreFormat);
 		gameVars.highScoreView.text = gameVars.storage.high_score;
 		gameVars.highScoreView.x = (gameSize.w - (gameVars.highScoreView._textW/res)-(10) )*res;
-		console.log(gameSize.w , gameVars.highScoreView._textW)
 		gameVars.highScoreView.y = (10)*res;
 		gameVars.highScoreView.alpha = 0.5;
 		gameVars.highScoreView.width = gameVars.highScoreView._textW;
@@ -12980,6 +12979,12 @@ function Start() {
 		gameVars.highScoreView.zIndex = 97;
 		stage.addChild(gameVars.highScoreView);
 		stage.updateLayersOrder();
+	}
+
+	for(var x=0;x<50;x++){
+		var size = gameVars.sizes[Math.floor(Math.random()*gameVars.sizes.length)];
+		var circle = Bodies.circle(-100, -100, size/2);
+		gameVars.circles.push(circle);
 	}
 
 	function initGame(){
@@ -13017,7 +13022,7 @@ function Start() {
             }else if(enemyType == 'red'){
 				done(index);
                 if(!gameVars.invincible && gameVars.lives == 1){
-                    gameOver();
+                    //gameOver();
                 }else if (!gameVars.invincible){
                     manageLives(-1);
                 }
@@ -13085,10 +13090,9 @@ function Start() {
 	}
 	function addEnemy(speed, timing){
 		if(!gameVars.over){
-			var size = gameVars.sizes[Math.floor(Math.random()*gameVars.sizes.length)];
 			var sideOp = gameVars.sidesOps[Math.floor(Math.random()*gameVars.sidesOps.length)];
 			var newEnemy = {};
-			newEnemy.body = PhysicsObject(newEnemy, sideOp, size, speed);
+			newEnemy.body = PhysicsObject(newEnemy, sideOp, speed);
 			newEnemy.sprite = SpriteObject(newEnemy, size);
 			gameVars.actors.push(newEnemy);
 			World.add(engine.world, newEnemy.body);
@@ -13179,7 +13183,7 @@ function Start() {
 		stage.updateLayersOrder();
 		return bunny;
 	}
-	function PhysicsObject(newEnemy, sideOp, size, speed) {
+	function PhysicsObject(newEnemy, sideOp, speed) {
 		var x, y, circle,
 			diag = Math.random() < 0.5 ? true : false,
 			speed = speed/100;
@@ -13187,7 +13191,8 @@ function Start() {
 			case 1:
 				x = gameSize.w + (size/2);
 				y = (Math.round(Math.random()*gameSize.h)+size)/2;
-				circle = Bodies.circle(x, y, size/2);
+				circle = gameVars.circles.pop();
+				Matter.Body.setPosition(circle, {x:x,y:y});
 				circle.name = "right";
 				if(diag == true){
 					if(y > (gameSize.h/2)){
@@ -13202,7 +13207,8 @@ function Start() {
 			case 2:
 				x = 0 - (size/2);
 				y = (Math.round(Math.random()*gameSize.h)+size)/2;
-				circle = Bodies.circle(x, y, size/2);
+				circle = gameVars.circles.pop();
+				Matter.Body.setPosition(circle, {x:x,y:y});
 				circle.name = "left";
 				if(diag == true){
 					if(y > (gameSize.h/2)){
@@ -13217,7 +13223,8 @@ function Start() {
 			case 3:
 				x = (Math.round(Math.random()*gameSize.w)+size)/2;
 				y = gameSize.h + (size/2);
-				circle = Bodies.circle(x, y, size/2);
+				circle = gameVars.circles.pop();
+				Matter.Body.setPosition(circle, {x:x,y:y});
 				circle.name = "bottom";
 				if(diag == true){
 					if(x > (gameSize.w/2)){
@@ -13232,7 +13239,8 @@ function Start() {
 			case 4:
 				x = (Math.round(Math.random()*gameSize.w)+size)/2;
 				y = 0 - (size/2);
-				circle = Bodies.circle(x, y, size/2);
+				circle = gameVars.circles.pop();
+				Matter.Body.setPosition(circle, {x:x,y:y});
 				circle.name = "top";
 				if(diag == true){
 					if(x > (gameSize.w/2)){
@@ -13256,10 +13264,18 @@ function Start() {
 		return circle;
 	}
 	function done(index){
-		World.remove(engine.world, gameVars.bodies[index]);
 		stage.removeChild(gameVars.actors[index].sprite);
+		gameVars.circles.unshift(gameVars.bodies[index]);
+		Matter.Body.setPosition(gameVars.bodies[index],
+			{x:-100,y:-100}
+		);
+		Matter.Body.setVelocity(gameVars.bodies[index],
+			{x:0,y:0}
+		);
+		World.remove(engine.world, gameVars.bodies[index]);
 		gameVars.bodies.splice(index,1);
 		gameVars.actors.splice(index,1);
+
 	}
 	function checkForBFR(){  // BattleFieldRemoval
 		if (gameVars.fontLoader <= 3){
@@ -13305,7 +13321,6 @@ function Start() {
 			var xDiff = Math.abs(gameVars.previousTouch.x - event.mouse.position.x);
 			var yDiff = Math.abs(gameVars.previousTouch.y - event.mouse.position.y);
 			if (xDiff > 100 || yDiff > 100){
-				console.log('no warp');
 				return;
 			}else{
 				Matter.Body.setPosition(gameVars.char.body,
@@ -13789,4 +13804,7 @@ if (storageAvailable('localStorage')) {
 else {
     game.storage = {available:false};
 }
-Start();
+
+setTimeout(function(){
+	Start();
+}, 300);
