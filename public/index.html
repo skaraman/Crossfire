@@ -18,28 +18,72 @@
                 font-weight: normal;
                 font-style: normal;
             }
+            @font-face {
+                font-family: 'Walkway';
+                src: url('assets/Walkway.ttf') format('truetype');
+                /*,
+                url('assets/Conductive.woff') format('woff'),
+                url('assets/Conductive.eot?#iefix') format('embedded-opentype'),
+                url('assets/Conductive.svg#Conductive') format('svg');*/
+                font-weight: normal;
+                font-style: normal;
+            }
             html, body {
                 width: 100%;
                 height: 100%;
                 margin: 0px;
                 padding: 0px;
-                font-family: 'Conductive' !important;
+                font-family: 'Walkway' !important;
             }
-                body {
-                    position: absolute;
-                    -webkit-transform-style: preserve-3d;
-                    transform-style: preserve-3d;
-                    -webkit-font-smoothing: antialiased;
-                    -webkit-tap-highlight-color: transparent;
-                    -webkit-perspective: 0;
-                    perspective: none;
-                    overflow: hidden;
-                  -webkit-touch-callout: none !important; /* iOS Safari */
-                  -webkit-user-select: none !important;   /* Chrome/Safari/Opera */
-                  -khtml-user-select: none !important;    /* Konqueror */
-                  -moz-user-select: none !important;      /* Firefox */
-                  -ms-user-select: none !important;       /* IE/Edge */
-                  user-select: none !important;           /* non-prefixed version, currently*/
+            body {
+                position: absolute;
+                -webkit-transform-style: preserve-3d;
+                transform-style: preserve-3d;
+                -webkit-font-smoothing: antialiased;
+                -webkit-tap-highlight-color: transparent;
+                -webkit-perspective: 0;
+                perspective: none;
+                overflow: hidden;
+                -webkit-touch-callout: none !important; /* iOS Safari */
+                -webkit-user-select: none !important;   /* Chrome/Safari/Opera */
+                -khtml-user-select: none !important;    /* Konqueror */
+                -moz-user-select: none !important;      /* Firefox */
+                -ms-user-select: none !important;       /* IE/Edge */
+                user-select: none !important;           /* non-prefixed version, currently*/
+            }
+            .famous-dom-element-content div{
+                background-image: url(images/stars.png);
+                width:30px;
+                height:28px;
+                display: inline-block;
+                background-size: 300%;
+            }
+            .famous-dom-element-content div#yellow{
+                background-position: 0 -1px;
+            }
+            .famous-dom-element-content div#pink{
+                background-position: -120px 0;
+            }
+            .famous-dom-element-content div#orange{
+                background-position: -150px 0;
+            }
+            .famous-dom-element-content div#green{
+                background-position: 0 -29px;
+            }
+            .famous-dom-element-content div#purple{
+                background-position: -30px -30px;
+            }
+            .famous-dom-element-content div#gainsboro{
+                background-position: -60px -29px
+            }
+            .famous-dom-element-content div#grey{
+                background-position: 0 -58px;
+            }
+            .famous-dom-element-content div#blue{
+                background-position: -30px -58px
+            }
+            .famous-dom-element-content div#black{
+                background-position: -60px -58px;
             }
         </style>
     </head>

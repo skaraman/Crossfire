@@ -13,6 +13,7 @@ var Vec3 = require('famous/math/Vec3');
 var Mat33 = require('famous/math/Mat33');
 var Quaternion = require('famous/math/Quaternion');
 var Collision = require('famous/physics/constraints/Collision');
+var Gravity3D = require('famous/physics/forces/Gravity3D')
 var Framedata = require ('./framedata.js');
 FamousEngine.init();
 var fd = Framedata.init();
@@ -29,6 +30,8 @@ var gameUI = game.addChild();
 gameUI.name = "gameUI";
 var gameSize = game.getSize();
 var gameEnemies;
+var attractables = [];
+
 document.addEventListener('touchmove', function(event) {
      event.preventDefault();
      game.onReceive(event.type, event);
@@ -58,18 +61,22 @@ game.onReceive = function(event, payload) {
         }
     }else if(event == 'click' || event == 'touchend' ){
         if(payload.target.attributes.getNamedItem('data-fa-path')){
-            var path = payload.target.attributes.getNamedItem('data-fa-path').value;
-        }else if (payload.target.parentNode.attributes.getNamedItem('data-fa-path')){
-            var path = payload.target.parentNode.attributes.getNamedItem('data-fa-path').value;
+            var path = payload.target.attributes.getNamedItem(
+                'data-fa-path').value;
+        }else if (payload.target.parentNode.attributes.getNamedItem(
+            'data-fa-path')){
+            var path = payload.target.parentNode.attributes.getNamedItem(
+                'data-fa-path').value;
         }
         var node = game.dispatch.getNode(path);
         if (node && node.name == "startButtonNode") {
             game.emit('startButton',payload);
         }else if (node && node.name == "addEnemyButtonNode"){
             game.emit('addEnemyButton',payload);
-        }else if (node && node.name ==  "boxNode"){
-            payload.interrupt = true;
-            game.emit('sequence',payload)
+        }else if (node && node.name ==  "howToButtonNode"){
+            game.emit('howToButton',payload)
+        }else if (node && node.name == "howToX"){
+            game.emit('howToXButton',payload)
         }
     }
     else if(event == 'mousemove' || event == 'touchmove'){
@@ -80,6 +87,17 @@ game.onReceive = function(event, payload) {
 };
 createBoxNode();
 createStartButtonNode();
+createHowToButtonNode();
+var gameBG = gameUI.addChild();
+gameBG.name = 'background';
+gameBG.setSizeMode('relative','relative')
+        .setProportionalSize(1,1)
+        .setAlign(0,0);
+gameBG.DOMElement = new DOMElement(gameBG);
+gameBG.DOMElement.setProperty('background-image', 'url(./images/space_new.png)')
+        .setProperty('z-index','1')
+        .setProperty('background-size','100% 100%');
+
 function initGame() {
     if(world) world = null;
     world = new physics.PhysicsEngine(options);
@@ -93,7 +111,8 @@ function initGame() {
         if(gameUIChildren[i] != null){
             if(gameUIChildren[i].name == "scoreNode"
             || gameUIChildren[i].name == "startButtonNode"
-            || gameUIChildren[i].name == "gameOverNode"){
+            || gameUIChildren[i].name == "gameOverNode"
+            || gameUIChildren[i].name == 'howToButtonNode'){
                 gameUI.removeChild(gameUIChildren[i]);
             }
         }
@@ -133,6 +152,9 @@ function initGame() {
     };
     gameEnemies.addComponent(gameEnemies.createEnemiesComponent);
     game.emit("createEnemies",{});
+    var payload = {};
+    payload.interrupt = true;
+    game.emit('loop',payload);
     var scoreNode = gameUI.addChild();
     game.scoreNode = scoreNode;
     scoreNode.name = "scoreNode";
@@ -145,7 +167,9 @@ function initGame() {
     scoreNode.DOMElement.setProperty('font-size','60px')
         .setProperty('opacity','0.5')
         .setProperty('text-align','center')
-        .setContent('0');
+        .setContent('0')
+        .setProperty('color','white')
+        .setProperty('z-index','2');
     game.score = 0;
     resetBody(game.boxNode.box);
     game.gameLivesNode = gameUI.addChild();
@@ -170,16 +194,26 @@ function initGame() {
     }
     game.gameLivesNode.addComponent(game.gameLivesNode.gameLivesComponent);
 }
-function createStartButtonNode() {
+function createStartButtonNode(restart) {
     var startButtonNode = gameUI.addChild();
+    game.startButtonNode = startButtonNode;
     startButtonNode.name = "startButtonNode";
     startButtonNode.setSizeMode('absolute','absolute')
         .setAbsoluteSize(240,60)
         .setAlign(0.5,0.8)
         .setPosition(-120,-30);
     startButtonNode.DOMElement = new DOMElement(startButtonNode);
+    var content = "Start Game"
+    if(restart){
+        content = 'Restart';
+        startButtonNode.setAbsoluteSize(150,60)
+            .setPosition(-75,-30);
+    }
+
     startButtonNode.DOMElement.setProperty('font-size','46px')
-        .setContent('Start Game 1');
+        .setContent(content)
+        .setProperty('z-index','2')
+        .setProperty('color','white');
     var startComponent = {
         id: null,
         node: null,
@@ -203,21 +237,54 @@ function createStartButtonNode() {
     }
     startButtonNode.addComponent(startComponent);
 }
+function createHowToButtonNode() {
+    var howToButtonNode = gameUI.addChild();
+    game.howToButtonNode = howToButtonNode;
+    howToButtonNode.name = "howToButtonNode";
+    howToButtonNode.setSizeMode('absolute','absolute')
+        .setAbsoluteSize(190,60)
+        .setAlign(0.5,0.8)
+        .setPosition(-95,40);
+    howToButtonNode.DOMElement = new DOMElement(howToButtonNode);
+    howToButtonNode.DOMElement.setProperty('font-size','30px')
+        .setContent('How To Play')
+        .setProperty('z-index','2')
+        .setProperty('color','white');
+    var howToComponent = {
+        id: null,
+        node: null,
+        gameOver: arguments[0],
+        onMount: function (node) {
+            this.id = node.addComponent(this);
+            this.node = node;
+        },
+        onReceive: function (event, payload){
+            if(event == 'howToButton')
+                this.node.requestUpdate(this.id);
+        },
+        onUpdate: function() {
+            howToPlay();
+        }
+    }
+    howToButtonNode.addComponent(howToComponent);
+}
 function createBoxNode() {
     var boxNode = gameUI.addChild();
     game.boxNode = boxNode;
     boxNode.name = "boxNode";
-    boxNode.framedata = fd.framedata.test_box;
+    boxNode.framedata = fd.framedata.astro;
     boxNode.idle = true;
+    boxNode.ratio = 0.8;
     boxNode.setSizeMode('absolute', 'absolute')
-        .setAbsoluteSize(40, 40)
+        .setAbsoluteSize(80*boxNode.ratio, 120*boxNode.ratio)
         .setAlign(0.5,0.5)
-        .setPosition(-20,-20,10000)
+        .setPosition(-40*boxNode.ratio,-60*boxNode.ratio,10000)
         .setOrigin(0.5, 0.5);
-    boxNode.size = 80;
+    boxNode.size = {w:80,h:120};
     boxNode.DOMElement = new DOMElement(boxNode);
-    boxNode.DOMElement.setProperty('background-image', 'url(./assets/grid.png)')
-        .setProperty('background-size','1100% 600%')
+    boxNode.DOMElement.setProperty(
+            'background-image', 'url(./images/astro_loop.png)')
+        .setProperty('background-size','800% 300%')
         .setProperty('z-index','1000');
     var boxNodePosition = boxNode.getPosition();
     var boxNodeComponentID = boxNode.addComponent({
@@ -229,9 +296,11 @@ function createBoxNode() {
         },
         onUpdate: function(time) {
             if(!boxNode.box){
+                var w = boxNode.size.w * boxNode.ratio,
+                    h = boxNode.size.h * boxNode.ratio;
                 boxNode.box = new Box({
                     mass: 1,
-                    size: [40,40,40],
+                    size: [w-10,h-5,40],
                     position:new Vec3(boxNodePosition[0],boxNodePosition[1]),
                     restitution: 0,
                     friction: 0
@@ -243,7 +312,7 @@ function createBoxNode() {
                 boxNode.setAlign(0,0)
             }
             var boxPosition = boxNode.box.getPosition();
-            boxNode.setPosition(boxPosition.x, boxPosition.y, 10000);
+            boxNode.setPosition(boxPosition.x-10, boxPosition.y-20, 10000);
             // rotation has to be set via quaternion
             boxNode.requestUpdate(this.id);
         }
@@ -284,7 +353,8 @@ function addAnimationComponent(char){
                 }
                 if (framedata.active.frameIterator < 1 || payload.interrupt) {
                     if(payload.interrupt){
-                        if(this.node.animationTransitionable) this.node.animationTransitionable.halt();
+                        if(this.node.animationTransitionable)
+                            this.node.animationTransitionable.halt();
                         framedata.active.frameIterator = 0;
                     }
                     framedata.active = framedata[event];
@@ -299,7 +369,13 @@ function addAnimationComponent(char){
                     framedata.active.duration = duration;
                     this.node.animationTransitionable = new Transitionable(0);
                     this.node.requestUpdate(this.id);
-                    this.node.animationTransitionable.from(0).to(duration, 'linear', duration, null, this.done, this.node);
+                    this.node.animationTransitionable.from(0).to(
+                        duration,
+                        'linear',
+                        duration,
+                        null,
+                        this.done,
+                        this.node);
                 }
             }
         },
@@ -310,16 +386,23 @@ function addAnimationComponent(char){
                 var frames = animation.frames;
                 var transition = this.node.animationTransitionable;
                 var grace = 2;
+                var ratio = 1
+                if(this.node.ratio) ratio = this.node.ratio;
                 if(transition._state < 1){
                     animation.frameIterator = 0;
                     animation.msTimer = 0;
                 }
                 if(animation.frameIterator < frames.length){
-                    if(transition._state < (animation.msTimer + frames[animation.frameIterator].ms + grace)
+                    if(transition._state <
+                        (animation.msTimer +
+                             frames[animation.frameIterator].ms + grace)
                     && transition._state >= (animation.msTimer - grace)
                     && animation != null) {
-                        this.node.DOMElement.setProperty('background-position','-' + (frames[animation.frameIterator].x/4)
-                            + 'px ' + '-' + (frames[animation.frameIterator].y/4) + 'px')
+                        this.node.DOMElement.setProperty(
+                            'background-position','-' +
+                            (frames[animation.frameIterator].x*ratio)
+                            + 'px ' + '-' +
+                            (frames[animation.frameIterator].y*ratio) + 'px')
                         animation.msTimer += frames[animation.frameIterator].ms;
                         animation.frameIterator++;
                         var forceMove = transition.get();
@@ -335,7 +418,13 @@ function addAnimationComponent(char){
                     }
                     if(animation.looping){
                         animation.frameIterator = 0;
-                        transition.from(0).to(framedata.active.duration, 'linear', framedata.active.duration, null, this.done, this.node);
+                        transition.from(0).to(
+                            framedata.active.duration,
+                            'linear',
+                            framedata.active.duration,
+                            null,
+                            this.done,
+                            this.node);
                         this.node.requestUpdate(this.id);
                     }else{
                         framedata.active = null;
@@ -349,21 +438,47 @@ function addAnimationComponent(char){
 function addEnemy(color, speed, timing){
     var newEnemy = gameEnemies.addChild();
     newEnemy.name = "";
-    var sizes = [30,40,50,60];
+    var sizes = [35,40,50,55];
     var size = sizes[Math.floor(Math.random()*sizes.length)];
     newEnemy._size = size;
     newEnemy.setSizeMode('absolute', 'absolute')
         .setAbsoluteSize(size, size)
+        .setAlign(0,0)
         .setPosition(-(size+5),-(size+5),3);
     newEnemy.DOMElement = new DOMElement(newEnemy);
-    newEnemy.DOMElement.setProperty('background',color)
+    var image;
+    if(color == 'yellow'){
+        image = "url(./images/star.png)"
+    }else if(color == 'red'){
+        image = 'url(./images/rock.png)'
+    }else if (color == 'blue') {
+        image = 'url(./images/star_b.png)'
+    }else if (color == 'grey') {
+        image = 'url(./images/star_g.png)'
+    }else if (color == 'green') {
+        image = 'url(./images/star_grn.png)'
+    }else if (color == 'orange') {
+        image = 'url(./images/star_oj.png)'
+    }else if (color == 'purple') {
+        image = 'url(./images/star_p.png)'
+    }else if (color == 'violet') {
+        image = 'url(./images/star_v.png)'
+    }else if (color == 'gainsboro') {
+        image = 'url(./images/star_gb.png)'
+    }else if (color == 'true_black') {
+        image = 'url(./images/star_blk.png)'
+    }
+    newEnemy.color = color;
+    newEnemy.DOMElement.setProperty('background-image',image)
+        .setProperty('background-size',"100% 100%")
         .setProperty('color','teal')
         .setProperty('font-size','24px')
         .setProperty('font-weight','bold')
         .setProperty('word-wrap','break-word')
         .setProperty('border-radius', "100%")
         .setProperty('text-align','center')
-        .setContent(newEnemy._id.substring(newEnemy._id.length-2,newEnemy._id.length));
+        //.setContent(
+            //newEnemy._id.substring(newEnemy._id.length-2,newEnemy._id.length));
     var newEnemyPosition = newEnemy.getPosition();
     newEnemy._position = newEnemyPosition;
     newEnemy.sphere = new Sphere({
@@ -374,6 +489,8 @@ function addEnemy(color, speed, timing){
         friction: 0
     });
     newEnemy.sphere.node = newEnemy;
+    if(color != 'red')
+        attractables.push(newEnemy.sphere);
     world.addBody(newEnemy.sphere);
     newEnemy.collision = world.addConstraint(
         new Collision([game.boxNode.box,newEnemy.sphere],{restitution:0})
@@ -505,34 +622,32 @@ function setEnemyInMotion(newEnemy, speed, timing){
     }, timing);
 }
 function addEnemyUtil(){
-    var colors = ['black','red','blue','grey','green','yellow','orange','purple','violet','gainsboro'];
-    var ran = Math.random();
     var cap = 92;
     if (game.score > 699) cap = 100;
-    var x = Math.floor(ran*cap);
+    var x = Math.floor(Math.random()*cap);
     if (game.over == false) {
-        var color = colors[0];
+        var color = 'yellow'; //debug 'yellow'
         if (x > 46 && x < 93) {
-            color=colors[1];
+            color='red';
         }else if (x == 93){
-            color=colors[2];
+            color='blue';
         }else if (x == 94) {
-            color=colors[3];
+            color='grey';
         }else if (x == 95){
-            color=colors[4];
+            color='green';
         }else if (x == 96){
-            color=colors[5];
+            color='orange';
         }else if (x == 97){
-            color=colors[6];
+            color='purple';
         }else if (x == 98){
-            color=colors[7];
+            color='violet';
         }else if (x == 99){
-            color=colors[8];
+            color='gainsboro';
         }else if (x == 100){
-            color=colors[9];
+            color='true_black';
         }
-        var timings_teirs = [[500,1000],[400,700],[300,500],[200,400],[100,250],[50,125]];
-        var speed_range = [200,300];
+        var timings_teirs = [[500,800],[400,650],[300,500],[200,400],[100,250],[50,125]];
+        var speed_range = [200,275];
         var speed = Math.floor(
             (Math.floor(Math.random()*(speed_range[1]-speed_range[0]))+speed_range[0])
             + (Math.floor(Math.random()*(game.score+1))/ game.speed_reducer)
@@ -565,8 +680,29 @@ function followAction(){
         newPosX = event.touches[0].clientX - (game.boxNode.size/2);
         newPosY = event.touches[0].clientY - (game.boxNode.size/2);
     }else {
-        newPosX = event.clientX - (game.boxNode.size/2);
-        newPosY = event.clientY - (game.boxNode.size/2);
+        newPosX = event.clientX - (game.boxNode.size.w/2);
+        newPosY = event.clientY - (game.boxNode.size.h/2);
+    }
+    if(game.warp || !game.idle){
+        if(!game.previousPosition){
+            game.previousPosition = {
+                x:newPosX,
+                y:newPosY
+            };
+        }
+        game.boxNode.box.setPosition(newPosX,newPosY,0);
+    }else if(!game.warp && game.previousPosition){
+        var xDiff = Math.abs(game.previousPosition.x - newPosX);
+        var yDiff = Math.abs(game.previousPosition.y = newPosY);
+        if(xDiff > 179 || yDiff > 179){
+            return;
+        }else{
+            game.boxNode.box.setPosition(newPosX,newPosY,0);
+        }
+        game.previousPosition = {
+            x: newPosX,
+            y: newPosY
+        }
     }
     game.boxNode.box.setPosition(newPosX,newPosY,0);
 }
@@ -588,10 +724,10 @@ function setSlowTime() {
             .setAbsoluteSize(null,10)
             .setProportionalSize(0.9,null)
             .setAlign(0.5,0);
-        slowTimeBarTimerNode.setPosition(-(Math.floor((gameSize[0] * .9)/2)),120,1);
+        slowTimeBarTimerNode.setPosition(-(Math.floor((gameSize[0] * .9)/2)),130,1);
         slowTimeBarTimerNode.DOMElement = new DOMElement(slowTimeBarTimerNode);
         slowTimeBarTimerNode.DOMElement
-            .setProperty('background-color','black')
+            .setProperty('background-color','grey')
             .setProperty('opacity','0.5');
         slowTimeBarTimerNode.slowTimeBarTimerComponent = {
             id:null,
@@ -668,7 +804,7 @@ function setInvincible(){
         invincibleBarTimerNode.setPosition(-(Math.floor((gameSize[0] * .9)/2)),100,1);
         invincibleBarTimerNode.DOMElement = new DOMElement(invincibleBarTimerNode);
         invincibleBarTimerNode.DOMElement
-                .setProperty('background-color','black')
+                .setProperty('background-color','blue')
                 .setProperty('opacity','0.5');
         invincibleBarTimerNode.invincibleBarTimerComponent = {
             id:null,
@@ -713,7 +849,131 @@ function setInvincible(){
     }else{
         game.invincibleBarTimerNode.invincibleBarTimerComponent.startTime = FamousEngine.getClock()._time;
     }
+}
+function setWarp(){
+    if(!game.warp){
+        game.warp = true;
+        var warpBarTimerNode = gameUI.addChild();
+        game.warpBarTimerNode = warpBarTimerNode;
+        warpBarTimerNode.name = "warpBarTimerNode";
+        warpBarTimerNode.setSizeMode('relative','absolute')
+            .setAbsoluteSize(null,10)
+            .setProportionalSize(0.9,null)
+            .setAlign(0.5,0);
+        warpBarTimerNode.setPosition(-(Math.floor((gameSize[0] * .9)/2)),gameSize[1]-100,1);
+        warpBarTimerNode.DOMElement = new DOMElement(warpBarTimerNode);
+        warpBarTimerNode.DOMElement
+                .setProperty('background-color','red')
+                .setProperty('opacity','0.5');
+        warpBarTimerNode.warpBarTimerComponent = {
+            id:null,
+            node:null,
+            startTime:null,
+            done: function(node){
+                node.dismount();
+                for(var i=0;i<FamousEngine._updateQueue.length;i++){
+                    if(FamousEngine._updateQueue[i] == node){
+                        FamousEngine._updateQueue.splice(i,1);
+                        i--;
+                        continue;
+                    }
+                }
+                delete game.warp;
+                delete game.warpBarTimerNode.DOMElement;
+            },
+            onMount: function(node){
+                this.id = node.addComponent(this);
+                this.node = node;
+            },
+            onUpdate: function(time){
+                if(this.startTime == null){
+                    this.startTime = time;
+                }
+                else{
+                    var diffTime = time - this.startTime;
+                    if(diffTime > 5000){
+                        this.done(this.node);
+                    }
+                    else {
+                        var percentage = diffTime / 5000;
+                        percentage = 0.9 * (1 - percentage)
+                        this.node.setProportionalSize(percentage,null);
+                    }
+                }
+                this.node.requestUpdate(this.id);
+            }
+        }
+        warpBarTimerNode.addComponent(warpBarTimerNode.warpBarTimerComponent);
+        warpBarTimerNode.requestUpdate(warpBarTimerNode.warpBarTimerComponent.id);
+    }else{
+        game.warpBarTimerNode.warpBarTimerComponent.startTime = FamousEngine.getClock()._time;
+    }
+}
+function setMagenetic(){
+    if(!game.magnetic){
+        game.magnetic = true;
+        var magneticBarTimerNode = gameUI.addChild();
+        game.magneticBarTimerNode = magneticBarTimerNode;
+        magneticBarTimerNode.name = "magneticBarTimerNode";
+        magneticBarTimerNode.setSizeMode('relative','absolute')
+            .setAbsoluteSize(null,10)
+            .setProportionalSize(0.9,null)
+            .setAlign(0.5,0);
+        magneticBarTimerNode.setPosition(-(Math.floor((gameSize[0] * .9)/2)),gameSize[1]-130,1);
+        magneticBarTimerNode.DOMElement = new DOMElement(magneticBarTimerNode);
+        magneticBarTimerNode.DOMElement
+                .setProperty('background-color','purple')
+                .setProperty('opacity','0.5');
+        magneticBarTimerNode.magneticBarTimerComponent = {
+            id:null,
+            node:null,
+            startTime:null,
+            done: function(node){
+                node.dismount();
+                for(var i=0;i<FamousEngine._updateQueue.length;i++){
+                    if(FamousEngine._updateQueue[i] == node){
+                        FamousEngine._updateQueue.splice(i,1);
+                        i--;
+                        continue;
+                    }
+                }
+                delete game.magnetic;
+                delete game.magneticBarTimerNode.DOMElement;
+            },
+            onMount: function(node){
+                this.id = node.addComponent(this);
+                this.node = node;
+            },
+            onUpdate: function(time){
+                if(this.startTime == null){
+                    this.startTime = time;
+                }
+                else{
+                    var diffTime = time - this.startTime;
+                    if(diffTime > 5000){
+                        this.done(this.node);
+                    }
+                    else {
+                        var percentage = diffTime / 5000;
+                        percentage = 0.9 * (1 - percentage)
+                        this.node.setProportionalSize(percentage,null);
+                    }
+                }
+                if(game.gravity)
+                    game.gravity.update();
+                var gravity = new Gravity3D(game.boxNode.box, attractables, {
+                    strength:100000000
+                });
+                game.gravity = gravity;
 
+                this.node.requestUpdate(this.id);
+            }
+        }
+        magneticBarTimerNode.addComponent(magneticBarTimerNode.magneticBarTimerComponent);
+        magneticBarTimerNode.requestUpdate(magneticBarTimerNode.magneticBarTimerComponent.id);
+    }else{
+        game.magneticBarTimerNode.magneticBarTimerComponent.startTime = FamousEngine.getClock()._time;
+    }
 }
 function manageLives(gameLivesComponent, op) {
     game.lives += op;
@@ -735,6 +995,8 @@ function manageLives(gameLivesComponent, op) {
     if(game.lives > 3)game.lives = 3;
 }
 function gameOver(){
+    gameEnemies.removeComponent(gameEnemies.collisionComponent);
+
     var allEnemies = gameEnemies.getChildren();
     while(allEnemies.length){
         if(allEnemies[0]==null){
@@ -747,6 +1009,7 @@ function gameOver(){
     game.over = true;
     var gC = gameUI.getChildren()
     var score = gC[1];
+    //score.setContent = score.content;
     var gameOverNode = gameUI.addChild();
     gameOverNode.name = "gameOverNode";
     gameOverNode.setSizeMode('absolute','absolute')
@@ -757,7 +1020,8 @@ function gameOver(){
     gameOverNode.DOMElement.setProperty('font-size','64px')
         .setProperty('text-align','center')
         .setContent('Game Over')
-        .setProperty('background','none');
+        .setProperty('background','none')
+        .setProperty('color','white');
     createStartButtonNode(true);
     score.setAlign(0.5,0.3,0);
     score.DOMElement.setProperty('opacity','1.0');
@@ -770,6 +1034,81 @@ function gameOver(){
     && window.localStorage.high_score
     && window.localStorage.high_score < game.score)
         window.localStorage.high_score = game.score;
+}
+function howToPlay(){
+    var shadow = gameUI.addChild();
+    game.shadow = shadow;
+	shadow.setSizeMode('relative','relative')
+        .setProportionalSize(1,1)
+        .setAlign(0,0)
+        .setPosition(0,0);
+    shadow.DOMElement = new DOMElement(shadow);
+    shadow.DOMElement.setProperty('background-color', 'black')
+        .setProperty('opacity','0.5');
+	var rulesView = gameUI.addChild();
+    game.rulesView = rulesView;
+    rulesView.setSizeMode('relative','relative')
+        .setProportionalSize(0.8,0.8)
+        .setAlign(0,0)
+        .setPosition(20,20);
+    rulesView.DOMElement = new DOMElement(rulesView);
+    rulesView.DOMElement.setProperty('color','white')
+        .setProperty('font-size','24px')
+        .setContent("Collect the Stars and avoid the Rocks!<br>"
+            + "Don't lift your finger off the screen<wbr> except if you get the Warp powerup!!<br>"
+            + "The key to a high score<wbr>"
+			+ "is to collect powerups and use them to your<wbr>advantage!<br><br>"
+            + "Yellow<div id='yellow'></div> - gives you some points!<br>"
+			+ "Blue<div id='blue'></div> - makes you invincible for 3 seconds!<br>"
+			+ "Grey<div id='grey'></div> - slows down time by 1/2 for 3 seconds!<br>"
+			+ "Green<div id='green'></div> - reduces how often objects are spawned!<br>"
+			+ "Orange<div id='orange'></div> - reduces how fast objects<wbr> are launched!<br>"
+			+ "Pink<div id='pink'></div> - gives you a thousand points instantly!<br>"
+			+ "Red<div id='gainsboro'></div> - gives you an exra life (up to 2)!<br>"
+			+ "Purple<div id='purple'></div> - makes you master of warp holes for 5 seconds!<br>"
+			+ "Black<div id='black'></div> - makes all stars attracted to you for 5 seconds!")
+        .setProperty('zIndex','98');
+    game.boxNode.box.setPosition(-1000, -1000, 10000);
+    game.startButtonNode.setPosition(-1000,-1000);
+    game.howToButtonNode.setPosition(-1000,-1000);
+    var howToX = gameUI.addChild();
+    howToX.name = "howToX";
+    game.howToX = howToX;
+    howToX.setSizeMode('absolute','absolute')
+        .setAbsoluteSize('40','40')
+        .setAlign(0.9,0)
+        .setPosition(-10,40);
+    howToX.DOMElement = new DOMElement(howToX);
+    howToX.DOMElement.setContent("X")
+        .setProperty('zIndex','98')
+        .setProperty('color','white')
+        .setProperty('font-size','24px');
+    var howToXComponent = {
+        id: null,
+        node: null,
+        gameOver: arguments[0],
+        onMount: function (node) {
+            this.id = node.addComponent(this);
+            this.node = node;
+        },
+        onReceive: function (event, payload){
+            if(event == 'howToXButton')
+                this.node.requestUpdate(this.id);
+        },
+        onUpdate: function() {
+            removeHowTo();
+        }
+    }
+    howToX.addComponent(howToXComponent);
+}
+function removeHowTo(){
+    gameUI.removeChild(game.howToX);
+	gameUI.removeChild(game.rulesView);
+	gameUI.removeChild(game.shadow);
+	game.startButtonNode.setPosition(-120,-30);
+	game.howToButtonNode.setPosition(-90, 40);
+    game.boxNode.box.setPosition(
+        -40*game.boxNode.ratio,-60*game.boxNode.ratio,10000);
 }
 function resetBody(body){
     body.angularMomentum = new Vec3(0,0,0);
@@ -806,16 +1145,16 @@ function collisionDetection(){
                     resetBody(game.boxNode.box);
                     if(constraint.targets[1].node.DOMElement){
                         enemy = constraint.targets[1].node;
-                        enemyType = enemy.DOMElement._styles.background;
+                        enemyType = enemy.color;
                         enemy.newEnemyComponent.done(enemy);
                         if(!constraint.detected){
                             constraint.detected = true;
-                            if(enemyType == 'black'){
-                                var score = enemy._size
+                            if(enemyType == 'yellow'){
+                                var score = enemy._size * 2;
                                 updateScore(score);
                             }else if(enemyType == 'red'){
                                 if(!game.invincible && game.lives == 1){
-                                    //gameOver();
+                                    gameOver();
                                 }else if (!game.invincible){
                                     game.emit('manageLives',{'life':-1});
                                 }
@@ -825,22 +1164,24 @@ function collisionDetection(){
                                 setSlowTime();
                             }else if (enemyType == 'green') {
                                 game.teir_reducer += 2;
-                            }else if (enemyType == 'yellow') {
-                                game.speed_reducer += 10;
                             }else if (enemyType == 'orange') {
-                                updateScore(1000);
+                                game.speed_reducer += 10;
                             }else if (enemyType == 'purple') {
-                                game.emit('manageLives',{'life':1});
+                                updateScore(1000);
                             }else if (enemyType == 'violet') {
-                                //magenetic
+                                game.emit('manageLives',{'life':1});
                             }else if (enemyType == 'gainsboro') {
-                                //warp
+                                setMagenetic();
+                            }else if (enemyType == 'true_black') {
+                                setWarp();
                             }
                         }
                     }
                 }
             }
             world.update(time);
+            if(!game.over)
+                updateScore(1);
             this.node.requestUpdate(this.id);
         }
     };
@@ -908,4 +1249,22 @@ if (storageAvailable('localStorage')) {
 }
 else {
     game.storage = {available:false};
+}
+if(game.storage.available && window.localStorage.high_score){
+    var highScoreNode = gameUI.addChild();
+    game.highScoreNode = highScoreNode;
+    highScoreNode.name = 'highScoreNode';
+    var leng = window.localStorage.high_score.length;
+
+    highScoreNode.setSizeMode('absolute','absolute')
+        .setAbsoluteSize(50*leng,30)
+        .setAlign(1,0)
+        .setPosition(-25*leng, 0);
+    highScoreNode.DOMElement = new DOMElement(highScoreNode);
+    highScoreNode.DOMElement.setProperty('font-size', '40px')
+        .setContent(window.localStorage.high_score)
+        .setProperty('z-index','2')
+        //.setProperty('text-align','left')
+        .setProperty('color','white')
+        .setProperty('opacity','0.5');
 }
