@@ -4,27 +4,13 @@
         <meta charset="utf-8">
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
         <title>Famous :: Seed Project</title>
-        <link rel="icon" href="favicon.ico?v=1" type="image/x-icon">
+        <link rel="icon" href="favicon.ico" type="image/x-icon">
         <meta name="description" content="">
         <!--<meta name="viewport" content="width=device-width, initial-scale=1">-->
         <style>
             @font-face {
-                font-family: 'Conductive';
-                src: url('assets/Conductive.ttf') format('truetype');
-                /*,
-                url('assets/Conductive.woff') format('woff'),
-                url('assets/Conductive.eot?#iefix') format('embedded-opentype'),
-                url('assets/Conductive.svg#Conductive') format('svg');*/
-                font-weight: normal;
-                font-style: normal;
-            }
-            @font-face {
                 font-family: 'Walkway';
                 src: url('assets/Walkway.ttf') format('truetype');
-                /*,
-                url('assets/Conductive.woff') format('woff'),
-                url('assets/Conductive.eot?#iefix') format('embedded-opentype'),
-                url('assets/Conductive.svg#Conductive') format('svg');*/
                 font-weight: normal;
                 font-style: normal;
             }
@@ -34,6 +20,7 @@
                 margin: 0px;
                 padding: 0px;
                 font-family: 'Walkway' !important;
+                overflow-x: hidden;
             }
             body {
                 position: absolute;
@@ -50,6 +37,20 @@
                 -moz-user-select: none !important;      /* Firefox */
                 -ms-user-select: none !important;       /* IE/Edge */
                 user-select: none !important;           /* non-prefixed version, currently*/
+            }
+            #rulesView .famous-dom-element-content{
+                overflow-y: scroll;
+            }
+            #rulesView .famous-dom-element-content::-webkit-scrollbar {
+                width: 0.5em;
+                height: 0.5em
+            }
+            #rulesView .famous-dom-element-content::-webkit-scrollbar-thumb {
+                background: rgba(33, 33, 33, 0.7);
+                border-radius: 5px;
+            }
+            #rulesView .famous-dom-element-content::-webkit-scrollbar-track {
+                background: none
             }
             .famous-dom-element-content div{
                 background-image: url(images/stars.png);
