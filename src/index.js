@@ -363,52 +363,90 @@ function initGame() {
     resetBody(game.boxNode.box);
 }
 function createStartButtonNode(restart) {
-    var startButtonNode = gameUI.addChild();
-    game.startButtonNode = startButtonNode;
-    startButtonNode.name = "startButtonNode";
-    startButtonNode.setSizeMode('absolute','absolute')
-        .setAbsoluteSize(240,60)
-        .setAlign(0.5,0.8)
-        .setPosition(-120,-130);
-    startButtonNode.DOMElement = new DOMElement(startButtonNode);
-    var content = "Start Game"
-    if(restart){
-        content = 'Restart';
-        startButtonNode.setAbsoluteSize(150,60)
-            .setPosition(-75,-30);
-    }
+    if(!game.startButtonNode){
+        var startButtonNode = gameUI.addChild();
+        game.startButtonNode = startButtonNode;
+        startButtonNode.name = "startButtonNode";
+        startButtonNode.setSizeMode('absolute','absolute')
+            .setAbsoluteSize(240,60)
+            .setAlign(0.5,0.8)
+            .setPosition(-120,-130);
+        startButtonNode.DOMElement = new DOMElement(startButtonNode);
+        var content = "Start Game"
+        if(restart){
+            content = 'Restart';
+            startButtonNode.setAbsoluteSize(150,60)
+                .setPosition(-75,-30);
+        }
 
-    startButtonNode.DOMElement.setProperty('font-size','46px')
-        .setContent(content)
-        .setProperty('z-index','2')
-        .setProperty('color','white');
-    var startComponent = {
-        id: null,
-        node: null,
-        gameOver: arguments[0],
-        onMount: function (node) {
-            this.id = node.addComponent(this);
-            this.node = node;
-        },
-        onReceive: function (event, payload){
-            if(event == 'startButton')
-                this.node.requestUpdate(this.id);
-        },
-        onUpdate: function() {
-            if(this.gameOver == true){
-                var pause = sound.pause();
-                var locat = pause._audioNode[0]._pos;
-                if(game.storage){
-                    window.localStorage._pos = locat;
+        startButtonNode.DOMElement.setProperty('font-size','46px')
+            .setContent(content)
+            .setProperty('z-index','2')
+            .setProperty('color','white');
+        var startComponent = {
+            id: null,
+            node: null,
+            gameOver: restart,
+            onMount: function (node) {
+                this.id = node.addComponent(this);
+                this.node = node;
+            },
+            onReceive: function (event, payload){
+                if(event == 'startButton')
+                    this.node.requestUpdate(this.id);
+            },
+            onUpdate: function() {
+                if(this.gameOver == true){
+                    var pause = sound.pause();
+                    var locat = pause._audioNode[0]._pos;
+                    if(game.storage){
+                        window.localStorage._pos = locat;
+                    }
+                    location.reload();
+                }else{
+                    game.started = true;
+                    initGame();
                 }
-                location.reload();
-            }else{
-                game.started = true;
-                initGame();
             }
         }
+        startButtonNode.addComponent(startComponent);
+    }else if(game.startButtonNode){
+        var startComponent = {
+            id: null,
+            node: null,
+            gameOver: restart,
+            onMount: function (node) {
+                this.id = node.addComponent(this);
+                this.node = node;
+            },
+            onReceive: function (event, payload){
+                if(event == 'startButton')
+                    this.node.requestUpdate(this.id);
+            },
+            onUpdate: function() {
+                if(this.gameOver == true){
+                    var pause = sound.pause();
+                    var locat = pause._audioNode[0]._pos;
+                    if(game.storage){
+                        window.localStorage._pos = locat;
+                    }
+                    location.reload();
+                }else{
+                    game.started = true;
+                    initGame();
+                }
+            }
+        }
+        game.startButtonNode.addComponent(startComponent);
+        if(restart){
+            game.startButtonNode.setAbsoluteSize(150,60)
+                .setPosition(-75,-30);
+            game.startButtonNode.DOMElement.setContent("Restart")
+
+        }else if(!restart){
+            game.startButtonNode.setPosition(-120,-130);
+        }
     }
-    startButtonNode.addComponent(startComponent);
 }
 function createHowToButtonNode() {
     var howToButtonNode = gameUI.addChild();
@@ -798,31 +836,31 @@ function addEnemyUtil(){
     if (game.score > 699) cap = 100;
     var x = Math.floor(Math.random()*cap);
     if (game.over == false) {
-        var color = 'purple'; //debug 'yellow'
+        var color = 'yellow'; //debug 'yellow'
         if (x > 46 && x < 93) {
-            color='black';     //rock
+            color='rock';     //rock
         }else if (x == 93){
             color='blue';     //blue
         }else if (x == 94) {
             color='grey';     //grey
         }else if (x == 95){
-            color='blue';    //green
+            color='green';    //green
         }else if (x == 96){
-            color='grey';   //orange
+            color='orange';   //orange
         }else if (x == 97){
-            color='blue';     //pnk
+            color='pink';     //pnk
         }else if (x == 98){
-            color='grey';      //red
+            color='red';      //red
         }else if (x == 99){
-            color='blue';   //purple
+            color='purple';   //purple
         }else if (x == 100){
-            color='grey';    //black
+            color='black';    //black
         }
         var timings_teirs = [[500,800],[400,650],[300,500],[200,400],[100,250],[50,125]];
         var speed_range = [200,275];
         var speed = Math.floor(
             (Math.floor(Math.random()*(speed_range[1]-speed_range[0]))+speed_range[0])
-            + (Math.floor(Math.random()*(game.score+1))/ game.speed_reducer)
+            + (Math.floor(Math.random()*((game.score/2)+1))/ game.speed_reducer)
         );
         game.timing_teir_i=0;
         if ((game.score/game.teir_reducer) < 200 ){
@@ -1196,9 +1234,9 @@ function gameOver(){
         .setContent('Game Over')
         .setProperty('background','none')
         .setProperty('color','white');
-    createStartButtonNode(true);
-    score.setAlign(0.5,0.3,0);
-    score.DOMElement.setProperty('opacity','1.0');
+    createStartButtonNode(game.over);
+    game.scoreNode.setAlign(0.5,0.3,0);
+    game.scoreNode.DOMElement.setProperty('opacity','1.0');
     game.started = false;
     game.boxNode.setAlign(0.5,0.7)
         .setPosition(-20,-20,1000);
@@ -1233,72 +1271,80 @@ function howToPlay(){
     game.startButtonNode.setPosition(-1000,-1000);
     game.howToButtonNode.setPosition(-1000,-1000);
     game.gameTitle.setPosition(-10000,-10000);
-
-    var shadow = gameUI.addChild();
-    game.shadow = shadow;
-	shadow.setSizeMode('relative','relative')
-        .setProportionalSize(1,1)
-        .setAlign(0,0)
-        .setPosition(0,0);
-    shadow.DOMElement = new DOMElement(shadow);
-    shadow.DOMElement.setProperty('background-color', 'black')
-        .setProperty('opacity','0.5');
-
-    var rulesView = gameUI.addChild();
-    game.rulesView = rulesView;
-    rulesView.name = "rulesView";
-    rulesView.setSizeMode('relative','relative')
-        .setProportionalSize(0.9,0.8)
-        .setAlign(0,0)
-        .setPosition(20,35);
-    rulesView.DOMElement = new DOMElement(rulesView, {id:'rulesView'});
-    rulesView.DOMElement.setProperty('color','white')
-        .setProperty('font-size','22px')
-        .setContent("Collect the Stars and avoid the Rocks!<br>"
-            + "Don't lift your finger off the screen<wbr> except if you get the Warp powerup!!<br>"
-            + "The key to a high score<wbr> "
-			+ "is to collect powerups and use them to your<wbr> advantage!<br><br>"
-            + "Yellow<div id='yellow'></div> - gives you some points!<br>"
-			+ "Blue<div id='blue'></div> - makes you invincible for 3 seconds!<br>"
-			+ "Grey<div id='grey'></div> - slows down time by 1/2 for 3 seconds!<br>"
-			+ "Green<div id='green'></div> - reduces how often objects are spawned!<br>"
-			+ "Orange<div id='orange'></div> - reduces how fast objects<wbr> are launched!<br>"
-			+ "Pink<div id='pink'></div> - gives you a thousand points instantly!<br>"
-			+ "Red<div id='gainsboro'></div> - gives you an exra life (up to 2)!<br>"
-			+ "Purple<div id='purple'></div> - makes you master of warp holes for 5 seconds!<br>"
-			+ "Black<div id='black'></div> - makes all stars attracted to you for 5 seconds!")
-        .setProperty('zIndex','98');
-
-    var howToX = gameUI.addChild();
-    howToX.name = "howToX";
-    game.howToX = howToX;
-    howToX.setSizeMode('absolute','absolute')
-        .setAbsoluteSize('40','40')
-        .setAlign(0.9,0)
-        .setPosition(-10,40);
-    howToX.DOMElement = new DOMElement(howToX);
-    howToX.DOMElement.setContent("X")
-        .setProperty('zIndex','98')
-        .setProperty('color','white')
-        .setProperty('font-size','24px');
-
-    var howToXComponent = {
-        id: null,
-        node: null,
-        gameOver: arguments[0],
-        onMount: function (node) {
-            this.id = node.addComponent(this);
-            this.node = node;
-        },
-        onReceive: function (event, payload){
-            if(event == 'howToXButton')
-                this.node.requestUpdate(this.id);
-        },
-        onUpdate: function() {
-            removeHowTo();
-        }
+    if(!game.shadow){
+        var shadow = gameUI.addChild();
+        game.shadow = shadow;
+    	shadow.setSizeMode('relative','relative')
+            .setProportionalSize(1,1)
+            .setAlign(0,0)
+            .setPosition(0,0);
+        shadow.DOMElement = new DOMElement(shadow);
+        shadow.DOMElement.setProperty('background-color', 'black')
+            .setProperty('opacity','0.5');
+    }else if(game.shadow){
+        game.shadow.setPosition(0,0);
     }
-    howToX.addComponent(howToXComponent);
+    if(!game.rulesView){
+        var rulesView = gameUI.addChild();
+        game.rulesView = rulesView;
+        rulesView.name = "rulesView";
+        rulesView.setSizeMode('relative','relative')
+            .setProportionalSize(0.9,0.8)
+            .setAlign(0,0)
+            .setPosition(20,35);
+        rulesView.DOMElement = new DOMElement(rulesView, {id:'rulesView'});
+        rulesView.DOMElement.setProperty('color','white')
+            .setProperty('font-size','22px')
+            .setContent("Collect the Stars and avoid the Rocks!<br>"
+                + "Don't lift your finger off the screen<wbr> except if you get the Warp powerup!!<br>"
+                + "The key to a high score<wbr> "
+    			+ "is to collect powerups and use them to your<wbr> advantage!<br><br>"
+                + "Yellow<div id='yellow'></div> - gives you some points!<br>"
+    			+ "Blue<div id='blue'></div> - makes you invincible for 3 seconds!<br>"
+    			+ "Green<div id='green'></div> - reduces how often objects are spawned!<br>"
+    			+ "Orange<div id='orange'></div> - reduces how fast objects<wbr> are launched!<br>"
+    			+ "Pink<div id='pink'></div> - gives you a thousand points instantly!<br>"
+    			+ "Red<div id='gainsboro'></div> - gives you an exra life (up to 2)!<br>"
+    			+ "Purple<div id='purple'></div> - makes you master of warp holes for 5 seconds!<br>"
+                + "Grey<div id='grey'></div> - slows down time by 1/2 for 3 seconds!<br>"
+    			+ "Black<div id='black'></div> - makes all stars attracted to you for 5 seconds!")
+            .setProperty('zIndex','98');
+    }else if (game.rulesView) {
+        game.rulesView.setPosition(20,35);
+        game.rulesView.DOMElement.setId('rulesView');
+    }
+    if(!game.howToX){
+        var howToX = gameUI.addChild();
+        howToX.name = "howToX";
+        game.howToX = howToX;
+        howToX.setSizeMode('absolute','absolute')
+            .setAbsoluteSize('40','40')
+            .setAlign(0.9,0)
+            .setPosition(-10,40);
+        howToX.DOMElement = new DOMElement(howToX);
+        howToX.DOMElement.setContent("X")
+            .setProperty('zIndex','98')
+            .setProperty('color','white')
+            .setProperty('font-size','24px');
+        var howToXComponent = {
+            id: null,
+            node: null,
+            onMount: function (node) {
+                this.id = node.addComponent(this);
+                this.node = node;
+            },
+            onReceive: function (event, payload){
+                if(event == 'howToXButton')
+                    this.node.requestUpdate(this.id);
+            },
+            onUpdate: function() {
+                removeHowTo();
+            }
+        }
+        howToX.addComponent(howToXComponent);
+    }else if(game.howToX){
+        game.howToX.setPosition(-10,40)
+    }
 }
 function removeHowTo(){
     game.howToX.setPosition(-1000,-1000);
@@ -1318,6 +1364,9 @@ function showCredits(){
     game.soundButtonNode.setPosition(-1000,-1000);
     game.creditsButtonNode.setPosition(-1000,-1000);
     game.gameTitle.setPosition(-10000,-10000);
+    game.boxNode.box.setPosition(-1000, -1000, 10000);
+    game.startButtonNode.setPosition(-1000,-1000);
+    game.howToButtonNode.setPosition(-1000,-1000);
     if(!game.shadow){
         var shadow = gameUI.addChild();
         game.shadow = shadow;
@@ -1347,10 +1396,8 @@ function showCredits(){
                 +"Sound Effects courtesy of www.freesfx.co.uk<br>"
                 +"Comments, criticism, concerns, bugs? email me at semyonkaraman@gmail.com<br>"
                 +"Made with HTML5, Famous.org, & Cocoon.io")
+                //special thanks go my beautiful wife Maggie Karaman © bewwy co
             .setProperty('zIndex','98');
-        game.boxNode.box.setPosition(-1000, -1000, 10000);
-        game.startButtonNode.setPosition(-1000,-1000);
-        game.howToButtonNode.setPosition(-1000,-1000);
     }else if(game.creditsView){
         game.creditsView.setPosition(20,65)
     }
@@ -1370,7 +1417,6 @@ function showCredits(){
         var creditsXComponent = {
             id: null,
             node: null,
-            gameOver: arguments[0],
             onMount: function (node) {
                 this.id = node.addComponent(this);
                 this.node = node;
