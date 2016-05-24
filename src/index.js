@@ -1,4 +1,4 @@
-'use strict';
+function startMe(){
 var DOMElement = require('famous/dom-renderables/DOMElement');
 var FamousEngine = require('famous/core/FamousEngine');
 var Dispatch = require('famous/core/Dispatch');
@@ -14,6 +14,7 @@ var Mat33 = require('famous/math/Mat33');
 var Quaternion = require('famous/math/Quaternion');
 var Collision = require('famous/physics/constraints/Collision');
 var Gravity3D = require('famous/physics/forces/Gravity3D')
+var PathStore = require('famous/core/PathStore')
 var Framedata = require ('./framedata.js');
 var Howler = require('./howler.js')
 FamousEngine.init();
@@ -26,13 +27,12 @@ var world = new physics.PhysicsEngine(options);
 var game = theScene.addChild();
 game.name = "game";
 game.dispatch = Dispatch;
+game.pathStore = PathStore;
 var gameUI = game.addChild();
-
 gameUI.name = "gameUI";
 var gameSize = game.getSize();
 var gameEnemies;
 var attractables = [];
-
 if (storageAvailable('localStorage')) {
     if(!window.localStorage.high_score)
         window.localStorage.high_score = 0;
@@ -43,17 +43,10 @@ if (storageAvailable('localStorage')) {
 else {
     game.storage = false;
 }
-
 document.addEventListener('touchmove', function(event) {
-     //event.preventDefault();
-     game.onReceive(event.type, event);
-}, false);
-document.addEventListener('touchend', function(event) {
-     //event.preventDefault();
      game.onReceive(event.type, event);
 }, false);
 document.addEventListener('touchstart', function(event) {
-     //event.preventDefault();
      game.onReceive(event.type, event);
 }, false);
 document.addEventListener('keydown', function(event) {
@@ -75,7 +68,7 @@ game.onReceive = function(event, payload) {
             payload.interruptable = false;
             game.emit('sequence_timed',payload);
         }
-    }else if(event == 'click' || event == 'touchend' ){
+    }else if(event == 'click' || event == 'touchstart'){
         if(payload.target.attributes.getNamedItem('data-fa-path')){
             var path = payload.target.attributes.getNamedItem(
                 'data-fa-path').value;
@@ -84,7 +77,13 @@ game.onReceive = function(event, payload) {
             var path = payload.target.parentNode.attributes.getNamedItem(
                 'data-fa-path').value;
         }
-        var node = game.dispatch.getNode(path);
+        if(path){
+            var node = game.dispatch.getNode(path);
+            console.log('path ' + path);
+        }
+        else{
+            console.error('no path');
+        }
         if (node && node.name == "startButtonNode") {
             game.emit('startButton',payload);
         }else if (node && node.name == "addEnemyButtonNode"){
@@ -93,12 +92,15 @@ game.onReceive = function(event, payload) {
             game.emit('howToButton',payload)
         }else if (node && node.name == "howToX"){
             game.emit('howToXButton',payload)
+
         }else if (node && node.name == 'soundButtonNode'){
             game.emit('sound',payload)
         }else if (node && node.name == 'creditsButtonNode'){
             game.emit('credits',payload)
         }else if (node && node.name == 'creditsX'){
             game.emit('creditsX',payload)
+        }else if(node && node.name =='leaderboardButtonNode'){
+            game.emit('leaderboardButton',payload)
         }
     }
     else if(event == 'mousemove' || event == 'touchmove'){
@@ -117,9 +119,45 @@ game.onReceive = function(event, payload) {
         }
     }
 };
+if(typeof(Cocoon) != 'undefined' && Cocoon.getPlatform() == 'ios') {
+    window.social = Cocoon.Social.GameCenter.init();
+    window.social = Cocoon.Social.GameCenter.getSocialInterface();
+    var loggedIn = window.social.isLoggedIn();
+    function loginSocial() {
+        if (!window.social.isLoggedIn()) {
+            window.social.login(function(loggedIn, error) {
+                if (error) {
+                    console.error("login error: " + error.message);
+                }else if (loggedIn) {
+                    console.log("login succeeded");
+                }else {
+                    console.log("login cancelled");
+                }
+            });
+        }
+    }
+    if (window.social){
+        window.social.on("loginStatusChanged", function(loggedIn, error) {
+            if (loggedIn) {
+                window.social.requestScore(function(score, error) {
+                    if (error) {
+                        console.error("Error getting user score: " + error.message);
+                    }else if (score) {
+                        console.log("score: " + score.score);
+                        window.localUserScore = score.score;
+                    }
+                }, {
+                    leaderboardID: "com.karaman.crossfire.highScore"
+                });
+            }
+        });
+    }
+    loginSocial();
+}
 createBoxNode();
 createStartButtonNode();
 createHowToButtonNode();
+createLeaderboardButtonNode();
 var gameBG = gameUI.addChild();
 gameBG.name = 'background';
 gameBG.setSizeMode('relative','relative')
@@ -151,9 +189,8 @@ game.gameLivesNode.gameLivesComponent = {
 }
 game.gameLivesNode.addComponent(game.gameLivesNode.gameLivesComponent);
 var posit = 0;
-if(game.storage && window.localStorage._pos){
-    posit = window.localStorage._pos;
-}
+game.charItCheck = null;
+game.boxSet = false;
 var sound = new Howl({
     urls:['./assets/starcatcher.m4a'],
     loop: true
@@ -166,15 +203,15 @@ var bomb = new Howl({
     urls:['./assets/bomb.m4a']
 });
 if(game.storage){
-    if(window.localStorage.sound && window.localStorage.sound == "true"){
-        window.localStorage.sound = game.sound;
+    if(window.localStorage.sound &&
+        (window.localStorage.sound == "true"|| window.localStorage.sound == 'undefined')){
         game.sound = true;
+        window.localStorage.sound = game.sound;
         sound.play(function(){
             sound.pos(posit);
         });
     }else if(window.localStorage.sound &&
-        (window.localStorage.sound == "false" ||
-         window.localStorage.sound == 'undefined')){
+        (window.localStorage.sound == "false")){
         game.sound = false;
     }else if(!window.localStorage.sound){
         window.localStorage.sound = true;
@@ -183,13 +220,13 @@ if(game.storage){
             sound.pos(posit);
         });
     }
-}else{
+}
+else{
     game.sound = true;
     sound.play(function(){
         sound.pos(posit);
     });
 }
-
 var soundButtonNode = gameUI.addChild();
 game.soundButtonNode = soundButtonNode;
 soundButtonNode.name = 'soundButtonNode';
@@ -197,7 +234,11 @@ soundButtonNode.setSizeMode('absolute','absolute')
     .setAbsoluteSize(40,40)
     .setAlign(0,1)
     .setPosition(20,-170);
-soundButtonNode.DOMElement = new DOMElement(soundButtonNode);
+soundButtonNode.DOMElement = new DOMElement(soundButtonNode,{
+    attributes: {
+        class:'famous-dom-element needsclick'
+    }
+});
 if(game.sound == true)
     var property = 'url(./images/music.png)'
 else if (game.sound == false)
@@ -220,7 +261,7 @@ soundButtonNode.soundButtonNodeComponent = {
     onUpdate: function(time){
         if(game.sound){
             game.sound = false;
-            sound.stop();
+            sound.pause();
             this.node.DOMElement.setProperty(
                 'background-image','url(./images/music_off.png)');
             if(game.storage)
@@ -236,7 +277,6 @@ soundButtonNode.soundButtonNodeComponent = {
     }
 }
 soundButtonNode.addComponent(soundButtonNode.soundButtonNodeComponent);
-
 var creditsButtonNode = gameUI.addChild();
 game.creditsButtonNode = creditsButtonNode;
 creditsButtonNode.name = 'creditsButtonNode';
@@ -264,7 +304,6 @@ creditsButtonNode.creditsButtonNodeComponent = {
     }
 }
 creditsButtonNode.addComponent(creditsButtonNode.creditsButtonNodeComponent);
-
 if(game.storage && window.localStorage.high_score){
     var highScoreNode = gameUI.addChild();
     game.highScoreNode = highScoreNode;
@@ -279,7 +318,6 @@ if(game.storage && window.localStorage.high_score){
     highScoreNode.DOMElement.setProperty('font-size', '40px')
         .setContent(window.localStorage.high_score)
         .setProperty('z-index','2')
-        //.setProperty('text-align','left')
         .setProperty('color','white')
         .setProperty('opacity','0.5');
 }
@@ -287,15 +325,25 @@ var gameTitle = gameUI.addChild();
 gameTitle.name = 'title';
 game.gameTitle = gameTitle;
 gameTitle.setSizeMode('absolute','absolute')
-    .setAbsoluteSize(345,45)
+    .setAbsoluteSize(341,45)
     .setAlign(0.5,0.2)
-    .setPosition(-175,0);
+    .setPosition(-150,0);
 gameTitle.DOMElement = new DOMElement(gameTitle);
 gameTitle.DOMElement.setContent("Stars & Asteroids")
     .setProperty('z-index','1')
-    .setProperty('font-size','45px')
+    .setProperty('font-size','40px')
     .setProperty('color','white');
-
+if(typeof(Cocoon) != 'undefined' && Cocoon.getPlatform() == 'ios'
+&& Cocoon.Ad.AdMob){
+    Cocoon.Ad.AdMob.configure({
+        ios: {
+            banner:"ca-app-pub-4693632452063283/2829774253",
+            interstitial:"ca-app-pub-4693632452063283/4023645854",
+        }
+    });
+    loadAndShowBannerAd();
+    loadInterstitialAd();
+}
 function initGame() {
     if(world) world = null;
     world = new physics.PhysicsEngine(options);
@@ -304,149 +352,137 @@ function initGame() {
     game.over = false;
     game.speed_reducer = 5;
     game.teir_reducer = 1;
-
+    game.lives = 1;
+    game.score = 0;
     game.startButtonNode.setPosition(-1000,-1000);
     game.howToButtonNode.setPosition(-1000,-1000);
     game.soundButtonNode.setPosition(-1000,-1000);
     game.creditsButtonNode.setPosition(-1000,-1000);
+    game.leaderboardButtonNode.setPosition(-1000,-1000);
     gameTitle.setPosition(-10000,-10000);
+    if(game.gameOverNode)game.gameOverNode.setPosition(-1000,-1000);
     document.body.style.cursor = "none";
-    gameEnemies = game.addChild();
-    game.activeEnemies = [];
-    game.gameEnemies = gameEnemies;
-    gameEnemies.name = "gameEnemies";
-    game.lives = 1;
-    gameEnemies.createEnemiesComponent = {
+    resetBody(game.boxNode.box);
+    if(!game.gameEnemies){
+        gameEnemies = game.addChild();
+        game.activeEnemies = [];
+        game.gameEnemies = gameEnemies;
+        gameEnemies.name = "gameEnemies";
+        gameEnemies.createEnemiesComponent = {
+            id: null,
+            node: null,
+            active: null,
+            onMount: function(node){
+                this.id = node.addComponent(this);
+                this.node = node;
+            },
+            onReceive: function(event,payload) {
+                if(event == 'createEnemies')
+                    this.node.requestUpdate(this.id);
+            },
+            onUpdate: function() {
+                if(this.active != true){
+                    loadingScreen('start');
+                    this.active = true;
+                    collisionDetection();
+                    addEnemyUtil();
+                    loadingScreen('end');
+                }
+            }
+        }
+        gameEnemies.addComponent(gameEnemies.createEnemiesComponent);
+    }
+    game.emit("createEnemies",{});
+    if(!game.scoreNode){
+        var scoreNode = gameUI.addChild();
+        game.scoreNode = scoreNode;
+        scoreNode.name = "scoreNode";
+        game.sizes = game.getSize();
+        scoreNode.setSizeMode('absolute','absolute')
+            .setAbsoluteSize(game.sizes[0],100)
+            .setAlign(0.5,0.5)
+            .setPosition(-game.sizes[0]/2,-50);
+        scoreNode.DOMElement = new DOMElement(scoreNode);
+        scoreNode.DOMElement.setProperty('font-size','60px')
+            .setProperty('opacity','0.5')
+            .setProperty('text-align','center')
+            .setContent('0')
+            .setProperty('color','white')
+            .setProperty('z-index','2');
+    }else {
+        game.scoreNode.DOMElement.setContent('0')
+            .setProperty('opacity','0.5');
+        game.scoreNode.setPosition(-game.sizes[0]/2,-50)
+            .setAlign(0.5,0.5);
+    }
+    game.emit('loop',{looping:true,interrupt:true});
+}
+function createStartButtonNode() {
+    var startButtonNode = gameUI.addChild();
+    game.startButtonNode = startButtonNode;
+    startButtonNode.name = "startButtonNode";
+    startButtonNode.setSizeMode('absolute','absolute')
+        .setAbsoluteSize(240,60)
+        .setAlign(0.5,0.8)
+        .setPosition(-102,-130);
+    startButtonNode.DOMElement = new DOMElement(startButtonNode);
+    var content = "Start Game"
+    startButtonNode.DOMElement.setProperty('font-size','40px')
+        .setContent(content)
+        .setProperty('z-index','2')
+        .setProperty('color','white');
+    var startComponent = {
         id: null,
         node: null,
-        active: false,
-        onMount: function(node){
+        onMount: function (node) {
             this.id = node.addComponent(this);
             this.node = node;
         },
-        onReceive: function(event,payload) {
-            if(event == 'createEnemies')
+        onReceive: function (event, payload){
+            if(event == 'startButton')
                 this.node.requestUpdate(this.id);
         },
         onUpdate: function() {
-            if(this.active != true){
-                loadingScreen('start');
-                this.active = true;
-                collisionDetection();
-                addEnemyUtil();
-                game.emit('sequence_timed',{looping:true});
-                loadingScreen('end');
-            }
-        }
-    };
-    gameEnemies.addComponent(gameEnemies.createEnemiesComponent);
-    game.emit("createEnemies",{});
-    var payload = {};
-    payload.interrupt = true;
-    game.emit('loop',payload);
-    var scoreNode = gameUI.addChild();
-    game.scoreNode = scoreNode;
-    scoreNode.name = "scoreNode";
-    game.sizes = game.getSize();
-    scoreNode.setSizeMode('absolute','absolute')
-        .setAbsoluteSize(game.sizes[0],100)
-        .setAlign(0.5,0.5)
-        .setPosition(-game.sizes[0]/2,-50);
-    scoreNode.DOMElement = new DOMElement(scoreNode);
-    scoreNode.DOMElement.setProperty('font-size','60px')
-        .setProperty('opacity','0.5')
-        .setProperty('text-align','center')
-        .setContent('0')
-        .setProperty('color','white')
-        .setProperty('z-index','2');
-    game.score = 0;
-    resetBody(game.boxNode.box);
-}
-function createStartButtonNode(restart) {
-    if(!game.startButtonNode){
-        var startButtonNode = gameUI.addChild();
-        game.startButtonNode = startButtonNode;
-        startButtonNode.name = "startButtonNode";
-        startButtonNode.setSizeMode('absolute','absolute')
-            .setAbsoluteSize(240,60)
-            .setAlign(0.5,0.8)
-            .setPosition(-120,-130);
-        startButtonNode.DOMElement = new DOMElement(startButtonNode);
-        var content = "Start Game"
-        if(restart){
-            content = 'Restart';
-            startButtonNode.setAbsoluteSize(150,60)
-                .setPosition(-75,-30);
-        }
-
-        startButtonNode.DOMElement.setProperty('font-size','46px')
-            .setContent(content)
-            .setProperty('z-index','2')
-            .setProperty('color','white');
-        var startComponent = {
-            id: null,
-            node: null,
-            gameOver: restart,
-            onMount: function (node) {
-                this.id = node.addComponent(this);
-                this.node = node;
-            },
-            onReceive: function (event, payload){
-                if(event == 'startButton')
-                    this.node.requestUpdate(this.id);
-            },
-            onUpdate: function() {
-                if(this.gameOver == true){
-                    var pause = sound.pause();
-                    var locat = pause._audioNode[0]._pos;
-                    if(game.storage){
-                        window.localStorage._pos = locat;
-                    }
-                    location.reload();
-                }else{
-                    game.started = true;
-                    initGame();
-                }
-            }
-        }
-        startButtonNode.addComponent(startComponent);
-    }else if(game.startButtonNode){
-        var startComponent = {
-            id: null,
-            node: null,
-            gameOver: restart,
-            onMount: function (node) {
-                this.id = node.addComponent(this);
-                this.node = node;
-            },
-            onReceive: function (event, payload){
-                if(event == 'startButton')
-                    this.node.requestUpdate(this.id);
-            },
-            onUpdate: function() {
-                if(this.gameOver == true){
-                    var pause = sound.pause();
-                    var locat = pause._audioNode[0]._pos;
-                    if(game.storage){
-                        window.localStorage._pos = locat;
-                    }
-                    location.reload();
-                }else{
-                    game.started = true;
-                    initGame();
-                }
-            }
-        }
-        game.startButtonNode.addComponent(startComponent);
-        if(restart){
-            game.startButtonNode.setAbsoluteSize(150,60)
-                .setPosition(-75,-30);
-            game.startButtonNode.DOMElement.setContent("Restart")
-
-        }else if(!restart){
-            game.startButtonNode.setPosition(-120,-130);
+            game.started = true;
+            initGame();
         }
     }
+    startButtonNode.addComponent(startComponent);
+}
+function createLeaderboardButtonNode() {
+    var leaderboardButtonNode = gameUI.addChild();
+    game.leaderboardButtonNode = leaderboardButtonNode;
+    leaderboardButtonNode.name = "leaderboardButtonNode";
+    leaderboardButtonNode.setSizeMode('absolute','absolute')
+        .setAbsoluteSize(140,60)
+        .setAlign(0.5,0.8)
+        .setPosition(-85,-20);
+    leaderboardButtonNode.DOMElement = new DOMElement(leaderboardButtonNode);
+    var content = "Leaderboard"
+    leaderboardButtonNode.DOMElement.setProperty('font-size','30px')
+        .setContent(content)
+        .setProperty('z-index','2')
+        .setProperty('color','white');
+    var leaderboardComponent = {
+        id: null,
+        node: null,
+        onMount: function (node) {
+            this.id = node.addComponent(this);
+            this.node = node;
+        },
+        onReceive: function (event, payload){
+            if(event == 'leaderboardButton')
+                this.node.requestUpdate(this.id);
+        },
+        onUpdate: function() {
+            if(typeof(Cocoon) != 'undefined' && Cocoon.getPlatform() == 'ios'){
+                if(window.social && window.social.isLoggedIn()){
+                    window.social.showLeaderboard();
+                }
+            }
+        }
+    }
+    leaderboardButtonNode.addComponent(leaderboardComponent);
 }
 function createHowToButtonNode() {
     var howToButtonNode = gameUI.addChild();
@@ -455,7 +491,7 @@ function createHowToButtonNode() {
     howToButtonNode.setSizeMode('absolute','absolute')
         .setAbsoluteSize(190,60)
         .setAlign(0.5,0.8)
-        .setPosition(-95,-60);
+        .setPosition(-85,-70);
     howToButtonNode.DOMElement = new DOMElement(howToButtonNode);
     howToButtonNode.DOMElement.setProperty('font-size','30px')
         .setContent('How To Play')
@@ -488,7 +524,7 @@ function createBoxNode() {
     boxNode.setSizeMode('absolute', 'absolute')
         .setAbsoluteSize(80*boxNode.ratio, 120*boxNode.ratio)
         .setAlign(0.5,0.5)
-        .setPosition(-40*boxNode.ratio,-60*boxNode.ratio,10000)
+        .setPosition(-36*boxNode.ratio,-60*boxNode.ratio,10000)
         .setOrigin(0.5, 0.5);
     boxNode.size = {w:80,h:120};
     boxNode.DOMElement = new DOMElement(boxNode);
@@ -518,12 +554,13 @@ function createBoxNode() {
                 boxNode.box.node = boxNode;
                 world.addBody(boxNode.box);
             }
-            if(game.started == true){
+            if(game.started == true && game.boxSet != true){
                 boxNode.setAlign(0,0)
+                boxNode.box.setPosition(gameSize[0]/2,gameSize[1]/2, 0);
+                game.boxSet = true;
             }
             var boxPosition = boxNode.box.getPosition();
             boxNode.setPosition(boxPosition.x-10, boxPosition.y-20, 10000);
-            // rotation has to be set via quaternion
             boxNode.requestUpdate(this.id);
         }
     });
@@ -646,6 +683,16 @@ function addAnimationComponent(char){
     char.addComponent(myComponent);
 }
 function addEnemy(color, speed, timing){
+    var allEnemies = gameEnemies.getChildren();
+    for(var a = 0; a < allEnemies.length; a++){
+        if(allEnemies[a] != null){
+            var id = allEnemies[a]._id;
+            var char = parseInt(id.substr(id.length - 1));
+            while(gameEnemies._freedChildIndicies.indexOf(char) != -1){
+                gameEnemies._freedChildIndicies.splice(gameEnemies._freedChildIndicies.indexOf(char),1);
+            }
+        }
+    }
     var newEnemy = gameEnemies.addChild();
     newEnemy.name = "";
     var sizes = [35,40,50,55];
@@ -687,8 +734,6 @@ function addEnemy(color, speed, timing){
         .setProperty('word-wrap','break-word')
         .setProperty('border-radius', "100%")
         .setProperty('text-align','center')
-        //.setContent(
-            //newEnemy._id.substring(newEnemy._id.length-2,newEnemy._id.length));
     var newEnemyPosition = newEnemy.getPosition();
     newEnemy._position = newEnemyPosition;
     newEnemy.sphere = new Sphere({
@@ -699,7 +744,7 @@ function addEnemy(color, speed, timing){
         friction: 0
     });
     newEnemy.sphere.node = newEnemy;
-    if(color != 'red')
+    if(color != 'rock')
         attractables.push(newEnemy.sphere);
     world.addBody(newEnemy.sphere);
     newEnemy.collision = world.addConstraint(
@@ -707,6 +752,7 @@ function addEnemy(color, speed, timing){
     );
     resetBody(newEnemy.sphere);
     addEnemyComponent(newEnemy);
+
     setEnemyInMotion(newEnemy, speed, timing);
 }
 function addEnemyComponent(newEnemy){
@@ -723,14 +769,8 @@ function addEnemyComponent(newEnemy){
             game.world.remove(node.collision);
             game.world.remove(node.sphere);
             game.activeEnemies.splice(game.activeEnemies.indexOf(node),1);
-            node.dismount();
+            if(node.isMounted())node.dismount();
             resetBody(game.boxNode.box);
-            /*
-            node.sphere.setPosition(-100,-100,-100);
-            resetBody(node.sphere);
-            node.setPosition(-100,-100,3);
-            node.requestUpdate(node.newEnemyComponent.id);
-            */
         },
         onMount: function (node){
             this.id = node.addComponent(this);
@@ -738,9 +778,42 @@ function addEnemyComponent(newEnemy){
         },
         onUpdate: function(time){
             var spherePosition = this.node.sphere.getPosition();
-            if (spherePosition.z != -100){
-                if(((spherePosition.x-65) > gameSize[0] || (spherePosition.x+65) < 0
-                    || (spherePosition.y-65) > gameSize[1] || (spherePosition.y+65) < 0)){
+            if(this.node.name == 'bottom'){
+                if((spherePosition.x-100) > gameSize[0] || (spherePosition.x+100) < 0
+                || (spherePosition.y+100) < 0){
+                    if(this.node._id != null){
+                        this.done(this.node);
+                    }
+                }else{
+                    this.node.setPosition(spherePosition.x,spherePosition.y,3);
+                    this.node.requestUpdate(this.id);
+                }
+            }
+            else if(this.node.name == 'top'){
+                if((spherePosition.x-100) > gameSize[0] || (spherePosition.x+100) < 0
+                || (spherePosition.y-100) > gameSize[1]){
+                    if(this.node._id != null){
+                        this.done(this.node);
+                    }
+                }else{
+                    this.node.setPosition(spherePosition.x,spherePosition.y,3);
+                    this.node.requestUpdate(this.id);
+                }
+            }
+            else if(this.node.name == 'left'){
+                if((spherePosition.x-100) > gameSize[0]
+                || (spherePosition.y-100) > gameSize[1] || (spherePosition.y+100) < 0){
+                    if(this.node._id != null){
+                        this.done(this.node);
+                    }
+                }else{
+                    this.node.setPosition(spherePosition.x,spherePosition.y,3);
+                    this.node.requestUpdate(this.id);
+                }
+            }
+            else if(this.node.name == 'right'){
+                if((spherePosition.x+100) < 0
+                || (spherePosition.y-100) > gameSize[1] || (spherePosition.y+100) < 0){
                     if(this.node._id != null){
                         this.done(this.node);
                     }
@@ -836,25 +909,25 @@ function addEnemyUtil(){
     if (game.score > 699) cap = 100;
     var x = Math.floor(Math.random()*cap);
     if (game.over == false) {
-        var color = 'yellow'; //debug 'yellow'
+        var color = 'yellow';
         if (x > 46 && x < 93) {
-            color='rock';     //rock
+            color='rock';
         }else if (x == 93){
-            color='blue';     //blue
+            color='blue';
         }else if (x == 94) {
-            color='grey';     //grey
+            color='grey';
         }else if (x == 95){
-            color='green';    //green
+            color='green';
         }else if (x == 96){
-            color='orange';   //orange
+            color='orange';
         }else if (x == 97){
-            color='pink';     //pnk
+            color='pink';
         }else if (x == 98){
-            color='red';      //red
+            color='red';
         }else if (x == 99){
-            color='purple';   //purple
+            color='purple';
         }else if (x == 100){
-            color='black';    //black
+            color='black';
         }
         var timings_teirs = [[500,800],[400,650],[300,500],[200,400],[100,250],[50,125]];
         var speed_range = [200,275];
@@ -886,7 +959,7 @@ function followAction(event){
         createBoxNode();
     }
     var newPosX, newPosY
-    if(event.type == "touchmove"){
+    if(event.type == "touchmove" || event.type == 'touchstart'){
         newPosX = event.touches[0].clientX - (game.boxNode.size.w/2);
         newPosY = event.touches[0].clientY - (game.boxNode.size.h/2);
     }else {
@@ -899,13 +972,13 @@ function followAction(event){
                 x:newPosX,
                 y:newPosY
             };
-            game.idle = false;
         }
+        game.idle = false;
         game.boxNode.box.setPosition(newPosX,newPosY,0);
     }else if(!game.warp && game.previousPosition){
         var xDiff = Math.abs(game.previousPosition.x - newPosX);
         var yDiff = Math.abs(game.previousPosition.y - newPosY);
-        if(xDiff > 179 || yDiff > 179){
+        if(xDiff > 79 || yDiff > 79){
             return;
         }else{
             game.boxNode.box.setPosition(newPosX,newPosY,0);
@@ -950,7 +1023,7 @@ function setSlowTime() {
                     node._updateQueue = [];
                 if(node._nextUpdateQueue && node._nextUpdateQueue.length)
                     node._nextUpdateQueue = [];
-                node.dismount();
+                if(node.isMounted())node.dismount();
                 delete game.slowTime;
                 delete game.slowTimeBarTimerNode.DOMElement;
                 for(var i=0; i< gameEnemies._children.length; i++){
@@ -959,7 +1032,8 @@ function setSlowTime() {
                         for(var j=0; j< veloArr.length; j++){
                             veloArr[j] = Math.floor(veloArr[j]*2);
                         }
-                        gameEnemies._children[i].sphere.setVelocity(veloArr[0],veloArr[1],veloArr[2])
+                        gameEnemies._children[i].sphere.setVelocity(veloArr[0],veloArr[1],veloArr[2]);
+                        gameEnemies._children[i].slowed = false;
                     }
                 }
             },
@@ -1021,7 +1095,7 @@ function setInvincible(){
             node:null,
             startTime:null,
             done: function(node){
-                node.dismount();
+                if(node.isMounted())node.dismount();
                 for(var i=0;i<FamousEngine._updateQueue.length;i++){
                     if(FamousEngine._updateQueue[i] == node){
                         FamousEngine._updateQueue.splice(i,1);
@@ -1080,7 +1154,7 @@ function setWarp(){
             node:null,
             startTime:null,
             done: function(node){
-                node.dismount();
+                if(node.isMounted())node.dismount();
                 for(var i=0;i<FamousEngine._updateQueue.length;i++){
                     if(FamousEngine._updateQueue[i] == node){
                         FamousEngine._updateQueue.splice(i,1);
@@ -1090,6 +1164,7 @@ function setWarp(){
                 }
                 delete game.warp;
                 delete game.warpBarTimerNode.DOMElement;
+                game.idle = true;
             },
             onMount: function(node){
                 this.id = node.addComponent(this);
@@ -1139,7 +1214,7 @@ function setMagenetic(){
             node:null,
             startTime:null,
             done: function(node){
-                node.dismount();
+                if(node.isMounted())node.dismount();
                 for(var i=0;i<FamousEngine._updateQueue.length;i++){
                     if(FamousEngine._updateQueue[i] == node){
                         FamousEngine._updateQueue.splice(i,1);
@@ -1207,8 +1282,17 @@ function manageLives(gameLivesComponent, op) {
     if(game.lives > 3)game.lives = 3;
 }
 function gameOver(){
+    if(game.warpBarTimerNode)
+        game.warpBarTimerNode.warpBarTimerComponent.done(
+            game.warpBarTimerNode);
+    if(game.slowTimeBarTimerNode)
+        game.slowTimeBarTimerNode.slowTimeBarTimerComponent.done(
+            game.slowTimeBarTimerNode);
+    if(game.magneticBarTimerNode)
+        game.magneticBarTimerNode.magneticBarTimerComponent.done(
+            game.magneticBarTimerNode);
     gameEnemies.removeComponent(gameEnemies.collisionComponent);
-
+    gameEnemies.createEnemiesComponent.active = false;
     var allEnemies = gameEnemies.getChildren();
     while(allEnemies.length){
         if(allEnemies[0]==null){
@@ -1217,52 +1301,97 @@ function gameOver(){
         }
         allEnemies[0].newEnemyComponent.done(allEnemies[0]);
     }
-    gameEnemies.requestUpdate(gameEnemies.createEnemiesComponent.id);
     game.over = true;
+    delete game.previousPosition;
     var gC = gameUI.getChildren()
     var score = gC[1];
-    //score.setContent = score.content;
     var gameOverNode = gameUI.addChild();
+    game.gameOverNode = gameOverNode;
     gameOverNode.name = "gameOverNode";
     gameOverNode.setSizeMode('absolute','absolute')
         .setAbsoluteSize(400,100)
         .setAlign(0.5,0.5)
         .setPosition(-200,-50);
     gameOverNode.DOMElement = new DOMElement(gameOverNode);
-    gameOverNode.DOMElement.setProperty('font-size','64px')
+    gameOverNode.DOMElement.setProperty('font-size','55px')
         .setProperty('text-align','center')
         .setContent('Game Over')
         .setProperty('background','none')
         .setProperty('color','white');
-    createStartButtonNode(game.over);
+    game.startButtonNode.setPosition(-62,-150);
+    game.startButtonNode.DOMElement.setContent('Restart');
     game.scoreNode.setAlign(0.5,0.3,0);
     game.scoreNode.DOMElement.setProperty('opacity','1.0');
     game.started = false;
     game.boxNode.setAlign(0.5,0.7)
         .setPosition(-20,-20,1000);
+    game.howToButtonNode.setPosition(-85,-70);
+    game.leaderboardButtonNode.setPosition(-85,-20);
+    game.soundButtonNode.setPosition(20,-170);
+    game.creditsButtonNode.setPosition(-60,-170);
     game.idle = true;
+    game.boxSet = false;
     document.body.style.cursor = "auto";
     if(game.storage == true
     && window.localStorage.high_score
-    && window.localStorage.high_score < game.score)
+    && window.localStorage.high_score < game.score){
         window.localStorage.high_score = game.score;
-
-    if(game.storage == true
-    && window.localStorage.games > 3){
-        loadAd();
+        game.highScoreNode.DOMElement.setContent(window.localStorage.high_score);
+        var leng = window.localStorage.high_score.length;
+        game.highScoreNode.setPosition(-25*leng, 0);
+        if (typeof(Cocoon) != 'undefined' && Cocoon.getPlatform() == 'ios'
+        && window.social && window.social.isLoggedIn()) {
+            var socialScore = window.localStorage.high_score;
+            if((window.localUserScore && window.localUserScore < window.localStorage.high_score)
+            || !window.localUserScore){
+                window.social.submitScore(socialScore, function(error){
+                    if (error) console.error("submitScore error: " + error.message);
+                },{
+                    leaderboardID: "com.karaman.crossfire.highScore"
+                });
+            }
+        }
+    }
+    if (typeof(Cocoon) != 'undefined' && Cocoon.getPlatform() == 'ios'){
+        if(Cocoon.Ad.AdMob && game.interstitial){
+            game.interstitial.show();
+        }
     }
 }
-function loadAd(){
-    var shadow = gameUI.addChild();
-    game.shadow = shadow;
-	shadow.setSizeMode('relative','relative')
-        .setProportionalSize(1,1)
-        .setAlign(0,0)
-        .setPosition(0,0);
-    shadow.DOMElement = new DOMElement(shadow);
-    shadow.DOMElement.setProperty('background-color', 'black')
-        .setProperty('opacity','0.5');
-    //?load AD?
+function loadAndShowBannerAd(){
+    var banner = Cocoon.Ad.AdMob.createBanner();
+    banner.setLayout(Cocoon.Ad.BannerLayout.BOTTOM_CENTER);
+    banner.on("load", function(){
+       console.log("Banner loaded " + banner.width, banner.height);
+    });
+    banner.on("fail", function(){
+       console.error("Banner failed to load");
+    });
+    banner.on("show", function(){
+       console.log("Banner shown a modal content");
+    });
+    banner.on("dismiss", function(){
+       console.log("Banner dismissed the modal content");
+    });
+    banner.load();
+    banner.show();
+}
+function loadInterstitialAd(){
+    var interstitial = Cocoon.Ad.AdMob.createInterstitial();
+    game.interstitial = interstitial;
+    interstitial.on("load", function(){
+        console.log("Interstitial loaded");
+    });
+    interstitial.on("fail", function(){
+        console.error("Interstitial failed");
+    });
+    interstitial.on("show", function(){
+        console.log("Interstitial shown");
+    });
+    interstitial.on("dismiss", function(){
+        console.log("Interstitial dismissed");
+    });
+    interstitial.load();
 }
 function howToPlay(){
     game.soundButtonNode.setPosition(-1000,-1000);
@@ -1271,6 +1400,11 @@ function howToPlay(){
     game.startButtonNode.setPosition(-1000,-1000);
     game.howToButtonNode.setPosition(-1000,-1000);
     game.gameTitle.setPosition(-10000,-10000);
+    game.leaderboardButtonNode.setPosition(-1000,-2000);
+    if(game.over){
+        game.scoreNode.setPosition(-10000,-10000);
+        game.gameOverNode.setPosition(-10000,-10000);
+    }
     if(!game.shadow){
         var shadow = gameUI.addChild();
         game.shadow = shadow;
@@ -1295,7 +1429,7 @@ function howToPlay(){
         rulesView.DOMElement = new DOMElement(rulesView, {id:'rulesView'});
         rulesView.DOMElement.setProperty('color','white')
             .setProperty('font-size','22px')
-            .setContent("Collect the Stars and avoid the Rocks!<br>"
+            .setContent("Collect the Stars and avoid the Asteroids!<br>"
                 + "Don't lift your finger off the screen<wbr> except if you get the Warp powerup!!<br>"
                 + "The key to a high score<wbr> "
     			+ "is to collect powerups and use them to your<wbr> advantage!<br><br>"
@@ -1350,23 +1484,35 @@ function removeHowTo(){
     game.howToX.setPosition(-1000,-1000);
     game.shadow.setPosition(-1000,-1000);
     game.rulesView.DOMElement.setId(" ");
-	game.rulesView.setPosition(-10000,-10000);
+    game.rulesView.setPosition(-10000,-10000);
+    game.howToButtonNode.setPosition(-85, -70);
+    game.leaderboardButtonNode.setPosition(-85,-20);
+    if(!game.over){
+        game.startButtonNode.setPosition(-102,-130);
+        game.soundButtonNode.setPosition(20,-170);
+        game.creditsButtonNode.setPosition(-60,-170);
+        game.gameTitle.setPosition(-150,0);
+        game.boxNode.box.setPosition(
+            -40*game.boxNode.ratio,-60*game.boxNode.ratio,10000);
+    }else if (game.over){
+        game.startButtonNode.setPosition(-62,-150);
+        game.scoreNode.setPosition(-game.sizes[0]/2,-50);
+        game.gameOverNode.setPosition(-200,-50);
 
-    game.startButtonNode.setPosition(-120,-130);
-	game.howToButtonNode.setPosition(-95, -60);
-    game.boxNode.box.setPosition(
-        -40*game.boxNode.ratio,-60*game.boxNode.ratio,10000);
-    game.soundButtonNode.setPosition(20,-170);
-    game.creditsButtonNode.setPosition(-60,-170);
-    game.gameTitle.setPosition(-175,0);
+    }
 }
 function showCredits(){
     game.soundButtonNode.setPosition(-1000,-1000);
     game.creditsButtonNode.setPosition(-1000,-1000);
-    game.gameTitle.setPosition(-10000,-10000);
+    game.gameTitle.setPosition(-2000,-2000);
     game.boxNode.box.setPosition(-1000, -1000, 10000);
     game.startButtonNode.setPosition(-1000,-1000);
     game.howToButtonNode.setPosition(-1000,-1000);
+    game.leaderboardButtonNode.setPosition(-2000,-2000);
+    if(game.over){
+        game.gameOverNode.setPosition(-2000,-2000);
+        game.scoreNode.setPosition(-1000,-1000);
+    }
     if(!game.shadow){
         var shadow = gameUI.addChild();
         game.shadow = shadow;
@@ -1391,12 +1537,12 @@ function showCredits(){
         creditsView.DOMElement = new DOMElement(creditsView);
         creditsView.DOMElement.setProperty('color','white')
             .setProperty('font-size','22px')
-            .setContent("Stars & Asteroids was designed, created, and developed by Semyon Karaman<br>"
+            .setContent("Stars & Asteroids was designed, created, and developed by Sem Karaman<br>"
                 +"Music by Ryan Mixey<br>"
                 +"Sound Effects courtesy of www.freesfx.co.uk<br>"
-                +"Comments, criticism, concerns, bugs? email me at semyonkaraman@gmail.com<br>"
+                +"Comments, feedback, bugs? email me at help@semkaraman.com<br>"
                 +"Made with HTML5, Famous.org, & Cocoon.io")
-                //special thanks go my beautiful wife Maggie Karaman © bewwy co
+                /*special thanks go my beautiful wife Maggie Karaman © bewwy co*/
             .setProperty('zIndex','98');
     }else if(game.creditsView){
         game.creditsView.setPosition(20,65)
@@ -1438,14 +1584,22 @@ function hideCredits(){
     game.shadow.setPosition(-10000,-10000);
     game.creditsView.setPosition(-1000,-1000);
     game.creditsX.setPosition(-1000,-1000);
-
-	game.startButtonNode.setPosition(-120,-130);
-	game.howToButtonNode.setPosition(-95, -60);
-    game.boxNode.box.setPosition(
-        -40*game.boxNode.ratio,-60*game.boxNode.ratio,10000);
+	game.startButtonNode.setPosition(-102,-130);
+    if(!game.over){
+        game.boxNode.box.setPosition(
+            -40*game.boxNode.ratio,-60*game.boxNode.ratio,10000);
+        game.gameTitle.setPosition(-150,0);
+    }
+    if(game.over){
+        game.gameOverNode.setPosition(-200,-50);
+        game.scoreNode.setPosition(-game.sizes[0]/2,-50);
+        game.startButtonNode.setPosition(-62,-150);
+    }
     game.soundButtonNode.setPosition(20,-170);
+	game.howToButtonNode.setPosition(-85, -70);
+    game.leaderboardButtonNode.setPosition(-85,-20);
     game.creditsButtonNode.setPosition(-60,-170);
-    game.gameTitle.setPosition(-175,0);
+
 };
 function resetBody(body){
     body.angularMomentum = new Vec3(0,0,0);
@@ -1494,7 +1648,7 @@ function collisionDetection(){
                             }else if(enemyType == 'rock'){
                                 if(game.sound)
                                     bomb.play();
-                                if(!game.invincible && game.lives == 1){
+                                if(!game.invincible && game.lives <= 1){
                                     gameOver();
                                 }else if (!game.invincible){
                                     game.emit('manageLives',{'life':-1});
@@ -1537,8 +1691,10 @@ function collisionDetection(){
                 }
             }
             world.update(time);
-            if(!game.over)
+            if(!game.over){
                 updateScore(1);
+                game.emit('loop',{looping:true});
+            }
             this.node.requestUpdate(this.id);
         }
     };
@@ -1599,3 +1755,9 @@ function storageAvailable(type) {
 		return false;
 	}
 }
+}
+document.addEventListener("deviceready", function(){
+    var attachFastClick = Origami.fastclick;
+    attachFastClick(document.body);
+    startMe();
+}, false);
