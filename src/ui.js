@@ -3,36 +3,66 @@
   var Node = require('famous/core/Node');
   var Position = require('famous/components/Position');
 
-
 function UI(){
-  this.UI_COMPONENTS = [
-    'startButtonNode',
-    'howToButtonNode',
-    'leaderboardButtonNode',
-    'soundButtonNode',
-    'creditsButtonNode',
-    'highScoreNode',
-    ''
-  ];
+  this.UI_COMPONENTS = {
+    'startButtonNode': {
+      w:240,h:60,
+      align:{x:0.5,y:0.8},
+      position:{x:-102,y:-130},
+      content="Start Game",
+      property: [
+        {id:'font-size',value:'40px'},
+        {id:'z-index',value:'2'},
+        {id:'color',value:'white'}
+      ]
+    },
+    'howToButtonNode': {
+      w:240,h:60,align:{x:,y:},position:{x:,y:}
+    },
+    'howToVeiwNode':{
+    },
+    'leaderboardButtonNode': {w:240,h:60,align:{x:,y:},position:{x:,y:}
+    },
+    'soundButtonNode': {w:240,h:60,align:{x:,y:},position:{x:,y:}
+    },
+    'creditsButtonNode': {w:240,h:60,align:{x:,y:},position:{x:,y:}
+    },
+    'highScoreNode': {w:240,h:60,align:{x:,y:},position:{x:,y:}
+    },
+    'scoreNode':{
+    },
+  };
+
   this.gameUI = game.addChild();
   this.gameUI.name = "gameUI";
 }
+UI.prototype.startGameView() = function startGameView(){
 
-UI.prototype.createStartButtonNode = function createStartButtonNode() {
-  var startButtonNode = this.gameUI.addChild();
-  game.startButtonNode = startButtonNode;
-  startButtonNode.name = "startButtonNode";
-  startButtonNode.setSizeMode('absolute','absolute')
-    .setAbsoluteSize(240,60)
-    .setAlign(0.5,0.8)
-    .setPosition(-102,-130);
-  startButtonNode.DOMElement = new DOMElement(startButtonNode);
-  var content = "Start Game"
-  startButtonNode.DOMElement.setProperty('font-size',40+'px')
-    .setContent(content)
-    .setProperty('z-index','2')
-    .setProperty('color','white');
-  var startComponent = {
+  //create all the UI elements for the start Game screen
+}
+UI.prototype._createElement = function createElement(element){
+  element = element ? element : null;
+  if(element == null) throw new Error('must have element type!');
+  var component = this.UI_COMPONENTS[element];
+  var node = this.gameUI.addChild();
+  game[element+"Node"] = node;
+  node.name = element+"Node";
+  node.setSizeMode('absolute','absolute')
+    .setAbsoluteSize(component.w,component.h)
+    .setAlign(component.align.x,component.align.y)
+    .setPosition(component.position.x,component.position.y);
+
+  node.DOMElement = new DOMElement(node);
+  for(var i =0;i<component.property.length;i++){
+    node.DOMElement.setProperty(component.property[i].id,component.property[i].value)
+  }
+  if(component.content)
+    node.DOMElement.setContent(component.content)
+
+  return node;
+}
+UI.prototype._createComponent = function createComponent(element) {
+  var component = {
       id: null,
       node: null,
       onMount: function (node) {
@@ -40,15 +70,23 @@ UI.prototype.createStartButtonNode = function createStartButtonNode() {
           this.node = node;
       },
       onReceive: function (event, payload){
-          if(event == 'startButtonNode')
+          if(event == element+'Node')
               this.node.requestUpdate(this.id);
       },
       onUpdate: function() {
-          game.started = true;
-          initGame();
+        this.node.update();
       }
   }
-  startButtonNode.addComponent(startComponent);
+  return component;
+}
+UI.prototype.createStartButtonNode = function createStartButtonNode() {
+  var startButtonNode = this.createElement('startButton');
+  startButtonNode.update = function update(){
+    game.started = true;
+    initGame();
+  }
+  var startButtonComponent = this.createComponent('startButton');
+  startButtonNode.addComponent(startButtonComponent);
 }
 UI.prototype.createHowToButtonNode = function createHowToButtonNode() {
     var howToButtonNode = gameUI.addChild();

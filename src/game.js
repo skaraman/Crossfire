@@ -86,10 +86,10 @@ function startMe(){
 
   createBoxNode();
 
-  createStartButtonNode();
-  createHowToButtonNode();
-  createLeaderboardButtonNode();
+  var UI = require('./ui.js');
+  var gameUI = new UI();
 
+  gameUI.startGameView();
 
   var posit = 0;
   game.enemyIT = 0;
