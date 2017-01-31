@@ -1,4 +1,9 @@
-function setSlowTime() {
+var Gravity3D = require('famous/physics/forces/Gravity3D');
+
+function Powers(){
+
+}
+Powers.prototype.setSlowTime = function() {
     if(!game.slowTime){
         game.slowTime = true;
         slowTimeBarTimerNode = gameUI.addChild();
@@ -77,7 +82,7 @@ function setSlowTime() {
         game.slowTimeBarTimerNode.slowTimeBarTimerComponent.startTime = FamousEngine.getClock()._time;
     }
 }
-function setInvincible(){
+Powers.prototype.setInvincible = function(){
     if(!game.invincible){
         game.invincible = true;
         invincibleBarTimerNode = gameUI.addChild();
@@ -137,7 +142,7 @@ function setInvincible(){
         game.invincibleBarTimerNode.invincibleBarTimerComponent.startTime = FamousEngine.getClock()._time;
     }
 }
-function setWarp(){
+Powers.prototype.setWarp = function(){
     if(!game.warp){
         game.warp = true;
         warpBarTimerNode = gameUI.addChild();
@@ -199,7 +204,7 @@ function setWarp(){
         game.warpBarTimerNode.warpBarTimerComponent.startTime = FamousEngine.getClock()._time;
     }
 }
-function setMagenetic(){
+Powers.prototype.setMagenetic = function(){
     if(!game.magnetic){
         game.magnetic = true;
         magneticBarTimerNode = gameUI.addChild();
@@ -266,3 +271,5 @@ function setMagenetic(){
         game.magneticBarTimerNode.magneticBarTimerComponent.startTime = FamousEngine.getClock()._time;
     }
 }
+
+module.exports = Powers;

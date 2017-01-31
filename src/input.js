@@ -1,5 +1,4 @@
-var game = document.scene.getChildren();
-game = game[0];
+var game = document.scene.getChildren()[0];
 
 function Input() {
   this.listeners = [];

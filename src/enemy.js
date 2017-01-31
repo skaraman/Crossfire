@@ -1,4 +1,36 @@
-function addEnemy(x){
+var game = document.scene.getChildren()[0];
+var DOMElement = require('famous/dom-renderables/DOMElement');
+var Sphere = require('famous/physics/bodies/Sphere');
+var Vec3 = require('famous/math/Vec3');
+var Mat33 = require('famous/math/Mat33');
+var Quaternion = require('famous/math/Quaternion');
+
+function Enemy(FamousEngine){
+  this.scene = FamousEngine._scenes.body;
+  this.enemies = this.scene.addChild();
+  this.enemies.createEnemiesComponent = {
+      id: null,
+      node: null,
+      active: null,
+      onMount: function(node){
+          this.id = node.addComponent(this);
+          this.node = node;
+      },
+      onReceive: function(event,payload) {
+          if(event == 'createEnemies')
+              this.node.requestUpdate(this.id);
+      },
+      onUpdate: function() {
+          if(!game.over && this.active != true){
+              collisionDetection();
+              this.active = true;
+              this.setEnemyInMotionUtil();
+          }
+      }
+  }
+  this.enemies.addComponent(this.enemies.createEnemiesComponent);
+}
+Enemy.prototype.addEnemy = function(x){
   var color = 'yellow'; // debug 'yellow'
   var image = "url(./images/star.png)" // star.png
   if (x > 91 && x < 184) {
@@ -29,9 +61,7 @@ function addEnemy(x){
     color='black';
     image = 'url(./images/star_blk.png)'
   }
-  var newEnemy = gameEnemies.addChild();
-  newEnemy.name = "";
-  game.newEnemy = newEnemy;
+  var newEnemy = this.enemies.addChild();
   var sizes = [35,40,50,55];
   var size = sizes[Math.floor(Math.random()*sizes.length)];
   newEnemy._size = size;
@@ -61,7 +91,7 @@ function addEnemy(x){
   if(color == 'yellow'){
     newEnemy.sphere.on('collision:start', function(payload){
       payload.bodyB.node.enemyComponent.done(payload.bodyB.node);
-      resetBody(payload.bodyA);
+      this.resetBody(payload.bodyA);
       if(game.sound)
         bing.play();
       updateScore(payload.bodyB.node._size * 2);
@@ -69,7 +99,7 @@ function addEnemy(x){
   }else if(color == 'rock'){
     newEnemy.sphere.on('collision:start', function(payload){
       payload.bodyB.node.enemyComponent.done(payload.bodyB.node);
-      resetBody(payload.bodyA);
+      this.resetBody(payload.bodyA);
       if(game.sound)
         bomb.play();
       if(!game.invincible && game.lives <= 1){
@@ -82,7 +112,7 @@ function addEnemy(x){
   }else if(color == 'blue'){
     newEnemy.sphere.on('collision:start', function(payload){
       payload.bodyB.node.enemyComponent.done(payload.bodyB.node);
-      resetBody(payload.bodyA);
+      this.resetBody(payload.bodyA);
       if(game.sound)
         bing.play();
       setInvincible();
@@ -90,7 +120,7 @@ function addEnemy(x){
   }else if(color == 'grey'){
     newEnemy.sphere.on('collision:start', function(payload){
       payload.bodyB.node.enemyComponent.done(payload.bodyB.node);
-      resetBody(payload.bodyA);
+      this.resetBody(payload.bodyA);
       if(game.sound)
         bing.play();
       setSlowTime();
@@ -98,7 +128,7 @@ function addEnemy(x){
   }else if (color == 'green') {
     newEnemy.sphere.on('collision:start', function(payload){
       payload.bodyB.node.enemyComponent.done(payload.bodyB.node);
-      resetBody(payload.bodyA);
+      this.resetBody(payload.bodyA);
       if(game.sound)
         bing.play();
       game.teir_reducer += 2;
@@ -106,7 +136,7 @@ function addEnemy(x){
   }else if (color == 'orange') {
     newEnemy.sphere.on('collision:start', function(payload){
       payload.bodyB.node.enemyComponent.done(payload.bodyB.node);
-      resetBody(payload.bodyA);
+      this.resetBody(payload.bodyA);
       if(game.sound)
         bing.play();
       game.speed_reducer += 10;
@@ -114,7 +144,7 @@ function addEnemy(x){
   }else if (color == 'pink') {
     newEnemy.sphere.on('collision:start', function(payload){
       payload.bodyB.node.enemyComponent.done(payload.bodyB.node);
-      resetBody(payload.bodyA);
+      this.resetBody(payload.bodyA);
       if(game.sound)
         bing.play();
       updateScore(1000);
@@ -122,7 +152,7 @@ function addEnemy(x){
   }else if (color == 'red') {
     newEnemy.sphere.on('collision:start', function(payload){
       payload.bodyB.node.enemyComponent.done(payload.bodyB.node);
-      resetBody(payload.bodyA);
+      this.resetBody(payload.bodyA);
       if(game.sound)
         bing.play();
       game.emit('manageLives',{'life':1});
@@ -130,7 +160,7 @@ function addEnemy(x){
   }else if (color == 'purple') {
     newEnemy.sphere.on('collision:start', function(payload){
       payload.bodyB.node.enemyComponent.done(payload.bodyB.node);
-      resetBody(payload.bodyA);
+      this.resetBody(payload.bodyA);
       if(game.sound)
         bing.play();
       setWarp();
@@ -138,20 +168,20 @@ function addEnemy(x){
   }else if (color == 'black') {
     newEnemy.sphere.on('collision:start', function(payload){
       payload.bodyB.node.enemyComponent.done(payload.bodyB.node);
-      resetBody(payload.bodyA);
+      this.resetBody(payload.bodyA);
       if(game.sound)
         bing.play();
       setMagenetic();
     });
   }
   newEnemy.sphere.node = newEnemy;
-  resetBody(newEnemy.sphere);
-  addEnemyComponent(newEnemy);
+  this.resetBody(newEnemy.sphere);
+  this.addEnemyComponent(newEnemy);
   newEnemy.idle = true;
   game.idleEnemies.push(newEnemy);
   game.enemyIT++;
 }
-function addEnemyComponent(enemy){
+Enemy.prototype.addEnemyComponent = function(enemy){
   enemy.enemyComponent = {
     id: null,
     node: null,
@@ -220,7 +250,7 @@ function addEnemyComponent(enemy){
   };
   enemy.addComponent(enemy.enemyComponent);
 }
-function setEnemyInMotion(speed, timing){
+Enemy.prototype.setEnemyInMotion = function(speed, tiing){
   r = Math.floor(Math.random()*game.idleEnemies.length);
   aEnemy = game.idleEnemies.splice(r,1)[0];
   aEnemy.idle = false;
@@ -307,7 +337,7 @@ function setEnemyInMotion(speed, timing){
      setEnemyInMotionUtil();
   }, timing);
 }
-function setEnemyInMotionUtil(){
+Enemy.prototype.setEnemyInMotionUtil = function(){
   if (game.over == false) {
     timings_teirs = [[500,800],[400,650],[300,500],[200,400],[100,250],[50,125]];
     speed_range = [200,275];
@@ -334,3 +364,19 @@ function setEnemyInMotionUtil(){
     setEnemyInMotion(speed, timing);
   }
 }
+Enemy.prototype.resetBody = function(body){
+  body.angularMomentum = new Vec3(0,0,0);
+  body.angularVelocity = new Vec3(0,0,0);
+  body.momentum = new Vec3(0,0,0);
+  body.orientation = new Quaternion(1,0,0,0);
+  body.velocity = new Vec3(0,0,0);
+  body.torque = new Vec3(0,0,0);
+  body.inverseInertia = new Mat33([1,0,0,0,1,0,0,0,1]);
+  body.localInertia = new Mat33([1,0,0,0,1,0,0,0,1]);
+  body.localInverseInertia = new Mat33([1,0,0,0,1,0,0,0,1]);
+  body.restitution = 0;
+  body.friction = 0;
+  return;
+}
+
+module.exports = Enemy;

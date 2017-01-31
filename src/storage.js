@@ -24,7 +24,7 @@ Storage.prototype.checkAvailable = function checkAvailable(type){
   }
 }
 
-Storage._setLocals = function setLocals(){
+Storage.prototype._setLocals = function setLocals(){
   if (this.isAvailable == true) {
       if(!storage.localStorage.high_score)
           storage.localStorage.high_score = 0;
@@ -37,6 +37,17 @@ Storage._setLocals = function setLocals(){
   }
   else {
       game.storage = false;
+  }
+}
+
+Storage.prototype.onReceive = function(event, payload) {
+  if(!event == 'updateHighScore')
+    return;
+  if(this.isAvailable == true
+  && window.localStorage.high_score
+  && window.localStorage.high_score < game.score){
+    window.localStorage.high_score = game.score;
+    game.emit('updateOnlineHighScore');
   }
 }
 
