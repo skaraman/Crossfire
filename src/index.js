@@ -12,12 +12,24 @@ document.addEventListener("deviceready", function(){
     "images/credits.png"
   ];
   FamousEngine.init();
-  FamousEngine.loadingScene = FamousEngine.createScene();
-  var loader = FamousEngine.loadingScene.addChild(new Loader());
-  loader.createLoadingScreen(FamousEngine.loadingScene);
+  FamousEngine.Game = FamousEngine.createScene();
+  var loader = new Loader(FamousEngine.Game);
+  var sceneComponent = {
+    id:null, node:null,
+    onMount: function (node) {
+      this.id = node.addComponent(this);
+      this.node = node;
+    },
+    onReceive: function (event, payload) {
+      if(event == 'initGame'){
+        FamousEngine.getClock().setTimeout(function(){
+          var game = new Game(FamousEngine);
+        }, 100);
+      }
+    }
+  }
+  FamousEngine.Game.addComponent(sceneComponent);
+  FamousEngine.Game.LoadingScreen = loader;
+  loader.createLoadingScreen(FamousEngine.Game);
   loader.load(assets, loader.requestUpdate);
-  FamousEngine.getClock().setTimeout(function(){
-    var game = new Game(FamousEngine);
-    //game.init();
-  }, 100);
 }, false);

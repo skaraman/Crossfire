@@ -1,4 +1,3 @@
-var game = document.scene.getChildren()[0];
 var DOMElement = require('famous/dom-renderables/DOMElement');
 var Sphere = require('famous/physics/bodies/Sphere');
 var Vec3 = require('famous/math/Vec3');
@@ -6,27 +5,29 @@ var Mat33 = require('famous/math/Mat33');
 var Quaternion = require('famous/math/Quaternion');
 
 function Enemy(FamousEngine){
+  this.idleEnemies = [];
+  this.enemyIT = 0;
   this.scene = FamousEngine._scenes.body;
   this.enemies = this.scene.addChild();
   this.enemies.createEnemiesComponent = {
-      id: null,
-      node: null,
-      active: null,
-      onMount: function(node){
-          this.id = node.addComponent(this);
-          this.node = node;
-      },
-      onReceive: function(event,payload) {
-          if(event == 'createEnemies')
-              this.node.requestUpdate(this.id);
-      },
-      onUpdate: function() {
-          if(!game.over && this.active != true){
-              collisionDetection();
-              this.active = true;
-              this.setEnemyInMotionUtil();
-          }
+    id: null,
+    node: null,
+    active: null,
+    onMount: function(node){
+      this.id = node.addComponent(this);
+      this.node = node;
+    },
+    onReceive: function(event,payload) {
+      if(event == 'createEnemies')
+        this.node.requestUpdate(this.id);
+    },
+    onUpdate: function() {
+      if(!game.over && this.active != true){
+        collisionDetection();
+        this.active = true;
+        this.setEnemyInMotionUtil();
       }
+    }
   }
   this.enemies.addComponent(this.enemies.createEnemiesComponent);
 }
@@ -178,8 +179,8 @@ Enemy.prototype.addEnemy = function(x){
   this.resetBody(newEnemy.sphere);
   this.addEnemyComponent(newEnemy);
   newEnemy.idle = true;
-  game.idleEnemies.push(newEnemy);
-  game.enemyIT++;
+  this.idleEnemies.push(newEnemy);
+  this.enemyIT++;
 }
 Enemy.prototype.addEnemyComponent = function(enemy){
   enemy.enemyComponent = {
@@ -342,8 +343,8 @@ Enemy.prototype.setEnemyInMotionUtil = function(){
     timings_teirs = [[500,800],[400,650],[300,500],[200,400],[100,250],[50,125]];
     speed_range = [200,275];
     speed = Math.floor(
-        (Math.floor(Math.random()*(speed_range[1]-speed_range[0]))+speed_range[0])
-        + (Math.floor(Math.random()*((game.score/2)+1))/ game.speed_reducer)
+      (Math.floor(Math.random()*(speed_range[1]-speed_range[0]))+speed_range[0])
+      + (Math.floor(Math.random()*((game.score/2)+1))/ game.speed_reducer)
     );
     game.timing_teir_i=0;
     if ((game.score/game.teir_reducer) < 200 ){

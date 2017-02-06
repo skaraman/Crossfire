@@ -1,15 +1,19 @@
-var game = document.scene.getChildren()[0];
 var DOMElement = require('famous/dom-renderables/DOMElement');
 var Node = require('famous/core/Node');
 var Position = require('famous/components/Position');
+//var game = document.scene.getChildren()[0];
 
-function UI(){
+function UI(node){
+  this.node = node // ? node : game.addChild();
+  this.node.name = "node";
+
   if(window.localStorage.high_score){
-    this.leng = window.localStorage.high_score.length;
+    var leng = window.localStorage.high_score.length;
   }else {
-    this.leng = 0;
+    var leng = 0;
   }
-  this.gameSize = game.getSize();
+  var gameSize = game.getSize();
+
   this.UI_COMPONENTS = {
     'backgroundNode': {
       w: 1,h: 1,
@@ -56,16 +60,16 @@ function UI(){
       content: "Collect the Stars and avoid the Asteroids!<br>"
         + "Don't lift your finger off the screen!"
         + "The key to a high score<wbr> "
-		    + "is to collect powerups and use them to your<wbr> advantage!<br><br>"
+        + "is to collect powerups and use them to your<wbr> advantage!<br><br>"
         + "Yellow<div id='yellow'></div> - gives you some points!<br>"
-		    + "Blue<div id='blue'></div> - makes you invincible for 6 seconds!<br>"
-		    + "Green<div id='green'></div> - reduces how often objects are spawned!<br>"
-		    + "Orange<div id='orange'></div> - reduces how fast objects<wbr> are launched!<br>"
-		    + "Pink<div id='pink'></div> - gives you a thousand points instantly!<br>"
-		    + "Red<div id='gainsboro'></div> - gives you an exra life (max 2 lives)!<br>"
-		    + "Purple<div id='purple'></div> - makes you master of warp holes for 10 seconds!<br>"
+        + "Blue<div id='blue'></div> - makes you invincible for 6 seconds!<br>"
+        + "Green<div id='green'></div> - reduces how often objects are spawned!<br>"
+        + "Orange<div id='orange'></div> - reduces how fast objects<wbr> are launched!<br>"
+        + "Pink<div id='pink'></div> - gives you a thousand points instantly!<br>"
+        + "Red<div id='gainsboro'></div> - gives you an exra life (max 2 lives)!<br>"
+        + "Purple<div id='purple'></div> - makes you master of warp holes for 10 seconds!<br>"
         + "Grey<div id='grey'></div> - slows down time by 1/2 for 6 seconds!<br>"
-		    + "Black<div id='black'></div> - makes all stars attracted to you for 10 seconds!",
+        + "Black<div id='black'></div> - makes all stars attracted to you for 10 seconds!",
       property:{
         'color': 'white',
         'font-size': '22px',
@@ -222,8 +226,6 @@ function UI(){
       }
     }
   }
-  this.node = game.addChild();
-  this.node.name = "node";
 }
 UI.prototype.removeElements = function() {
   game.removeChild(this.node)
@@ -309,8 +311,10 @@ UI.prototype.createComponent = function(element){
       this.node = node;
     },
     onReceive: function (event, payload){
-      if(event == element+'Node')
+      if(event == element){
+        this.node.payload = payload;
         this.node.requestUpdate(this.id);
+      }
     },
     onUpdate: function() {
       this.node.renew();
@@ -323,8 +327,7 @@ UI.prototype.createStartButtonNode = function(){
   this.startButtonNode = this.createElement('startButton');
   this.startButtonNode.renew = function(){
     game.started = true;
-    _this.emit('initGame',{});
-    //initGame();
+    _this.emit('startGame',{});
   }
   var startButtonComponent = this.createComponent('startButton');
   this.startButtonNode.addComponent(startButtonComponent);
@@ -333,8 +336,7 @@ UI.prototype.createRestartButtonNode = function() {
   this.restartButtonNode = this.createElement('restartButton');
   this.restartButtonNode.renew = function(){
     game.started = true;
-    _this.emit('initGame',{});
-    //initGame();
+    _this.emit('startGame',{});
   }
   var restartButtonComponent = this.createComponent('restartButton');
   this.restartButtonNode.addComponent(restartButtonComponent);

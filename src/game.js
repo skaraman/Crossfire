@@ -11,10 +11,9 @@ var fd = require ('./framedata.js');
 var Howler = require('./howler.min.js');
 var res = window.devicePixelRatio;
 function Game(FamousEngine){
-  this.scene = FamousEngine.createScene();
+  this.scene = FamousEngine.Game;
   document.scene = this.scene;
   this.node = this.scene.addChild();
-
   var UI = require('./ui.js');
   var Storage = require('./storage.js');
   var Input = require('./input.js');
@@ -27,7 +26,7 @@ function Game(FamousEngine){
   this.attractables = [];
   this.games = 0;
   this.ongoing = false;
-  this.UI = new UI();
+  this.UI = new UI(this.node);
   var background = this.UI.createElement('background');
   var storage = new Storage();
   Input.init();
