@@ -2,23 +2,24 @@ var Dispatch = require('famous/core/Dispatch');
 var UI = require('./ui.js');
 
 function Loader(Game){
-  var loader = Game.addChild();
+  this.node = Game;
   var loaderComponent = {
-    id:null, node:null, game:null,
+    id:null, node:null, game:null, scene:null,
     onMount: function (node, id) {
       this.id = node.addComponent(this);
       this.node = node;
       this.game = node._updater.Game;
+      this.scene = node._updater.Scene;
     },
     onReceive: function (event) {
       if(event == 'removeLoading'){
         this.game.removeChild(this.node);
         delete this.game.LoadingScreen;
-        this.game.emit('initGame')
+        this.scene.emit('initGame');
       }
     }
   }
-  loader.addComponent(loaderComponent)
+  this.node.addComponent(loaderComponent)
   this.UI_COMPONENTS = {
     'loadingScreenNode': {
       sizeMode: 'relative',
@@ -59,10 +60,10 @@ function Loader(Game){
 Loader.prototype = Object.create(UI.prototype);
 Loader.prototype.constructor = Loader;
 Loader.prototype.createLoadingScreen = function functionName(scene) {
-  this.LoadingScreen = this.createElement('loadingScreen');
-  this.LoadingText = this.createElement('loadingText');
-  this.ProgressBarContainer = this.createElement('progressBarContainer');
-  this.ProgressBar = this.createElement('progressBar');
+  this.createElement('loadingScreen');
+  this.createElement('loadingText');
+  this.createElement('progressBarContainer');
+  this.createElement('progressBar');
   this.progressBarComponent = {
     id:null, node:null, game:null,
     onMount: function(node, id) {
@@ -84,8 +85,8 @@ Loader.prototype.createLoadingScreen = function functionName(scene) {
       }
     }
   }
-  progressBarNode.addComponent(this.progressBarComponent)
-  return this.loadingScreenNode;
+  this.progressBarNode.addComponent(this.progressBarComponent)
+  return this;
 }
 Loader.prototype.load = function(assets, callback){
   var len = assets.length, loaded = 0.0, _this = this;
@@ -111,7 +112,7 @@ Loader.prototype.load = function(assets, callback){
   }
   function progress(){
     loaded++;
-    _this.emit('progressLoad', {complete:loaded/len})
+    _this.node.emit('progressLoad', {complete:loaded/len})
   }
 }
 Loader.prototype.get = function(url, success, failure) {

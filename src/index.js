@@ -12,7 +12,8 @@ document.addEventListener("deviceready", function(){
     "images/credits.png"
   ];
   FamousEngine.init();
-  FamousEngine.Game = FamousEngine.createScene();
+  FamousEngine.Scene = FamousEngine.createScene();
+  FamousEngine.Game = FamousEngine.Scene.addChild();
   var loader = new Loader(FamousEngine.Game);
   var sceneComponent = {
     id:null, node:null,

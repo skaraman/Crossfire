@@ -12,7 +12,7 @@ function UI(node){
   }else {
     var leng = 0;
   }
-  var gameSize = game.getSize();
+  var gameSize = this.node.getSize();
 
   this.UI_COMPONENTS = {
     'backgroundNode': {
@@ -277,7 +277,7 @@ UI.prototype.createElement = function(element){
   if(element == null) throw new Error('must have element type!');
   var component = this.UI_COMPONENTS[element+"Node"];
   var node = this.node.addChild();
-  game[element+"Node"] = node;
+  this[element+"Node"] = node;
   node.name = element+"Node";
   node.setSizeMode(component.sizeMode,component.sizeMode)
   if(component.sizeMode == 'absolute')
@@ -295,8 +295,10 @@ UI.prototype.createElement = function(element){
   }else{
     node.DOMElement = new DOMElement(node);
   }
-  for(var i =0;i<component.property.length;i++){
-    node.DOMElement.setProperty(component.property[i].id,component.property[i].value)
+  if(component.property){
+    for(var i =0;i<component.property.length;i++){
+      node.DOMElement.setProperty(component.property[i].id,component.property[i].value)
+    }
   }
   if(component.content)
     node.DOMElement.setContent(component.content)

@@ -11,9 +11,9 @@ var fd = require ('./framedata.js');
 var Howler = require('./howler.min.js');
 var res = window.devicePixelRatio;
 function Game(FamousEngine){
-  this.scene = FamousEngine.Game;
-  document.scene = this.scene;
-  this.node = this.scene.addChild();
+  this.scene = FamousEngine.Game; //this is actually the loader body/0
+  document.scene = this.scene; // actual scene is FamousEngine.Scene body
+  this.node = this.scene.addChild(); // the game becomes body/0/0
   var UI = require('./ui.js');
   var Storage = require('./storage.js');
   var Input = require('./input.js');
@@ -26,13 +26,10 @@ function Game(FamousEngine){
   this.attractables = [];
   this.games = 0;
   this.ongoing = false;
-  this.UI = new UI(this.node);
-  var background = this.UI.createElement('background');
   var storage = new Storage();
   Input.init();
   this.node.onReceive = Input.dispatch;
   var OnlineFeatures = require('./onlineFeatures.js');
-  this.UI.startGameView();
   var posit = 0;
   this.enemyIT = 0;
   this.boxSet = false;
@@ -72,6 +69,8 @@ function Game(FamousEngine){
       this.sound.pos(posit);
     });
   }
+  this.UI = new UI(this.node);
+  this.UI.startGameView();
   this.createBoxNode();
   this.enemies = new Enemy(FamousEngine);
   this.idleEnemies = [];
