@@ -13,9 +13,10 @@ document.addEventListener("deviceready", function(){
   ];
   FamousEngine.init();
   FamousEngine.Scene = FamousEngine.createScene();
-  FamousEngine.Game = FamousEngine.Scene.addChild();
-  var loader = new Loader(FamousEngine.Game);
-  var sceneComponent = {
+  FamousEngine.Scene.Loader = FamousEngine.Scene.addChild();
+  FamousEngine.Scene.Loader = new Loader(FamousEngine.Scene.Loader);
+  var loader = FamousEngine.Scene.Loader;
+  var loaderComponent = {
     id:null, node:null,
     onMount: function (node) {
       this.id = node.addComponent(this);
@@ -23,14 +24,15 @@ document.addEventListener("deviceready", function(){
     },
     onReceive: function (event, payload) {
       if(event == 'initGame'){
+        this.node.removeChild(FamousEngine.Scene.Loader.UIHolder);
         FamousEngine.getClock().setTimeout(function(){
-          var game = new Game(FamousEngine);
+          FamousEngine.Game = new Game(FamousEngine);
         }, 100);
       }
     }
   }
-  FamousEngine.Game.addComponent(sceneComponent);
-  FamousEngine.Game.LoadingScreen = loader;
-  loader.createLoadingScreen(FamousEngine.Game);
-  loader.load(assets, loader.requestUpdate);
+  loader.node.addComponent(loaderComponent);
+  loader.createLoadingScreen();
+  loader.load(assets,
+    loader.node.requestUpdate);
 }, false);

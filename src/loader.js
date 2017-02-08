@@ -1,22 +1,21 @@
 var Dispatch = require('famous/core/Dispatch');
 var UI = require('./ui.js');
+var DOMElement = require('famous/dom-renderables/DOMElement');
 
-function Loader(Game){
-  this.node = Game;
+function Loader(loader){
+  this.node = loader;
+  this.node.name = "loader";
+  this.UIHolder = this.node.addChild();
+  this.UIHolder.name = 'UIHolder';
   var loaderComponent = {
-    id:null, node:null, game:null, scene:null,
+    id:null, node:null, scene:null,
     onMount: function (node, id) {
       this.id = node.addComponent(this);
       this.node = node;
-      this.game = node._updater.Game;
       this.scene = node._updater.Scene;
     },
     onReceive: function (event) {
-      if(event == 'removeLoading'){
-        this.game.removeChild(this.node);
-        delete this.game.LoadingScreen;
-        this.scene.emit('initGame');
-      }
+      if(event == 'removeLoading') this.scene.emit('initGame');
     }
   }
   this.node.addComponent(loaderComponent)
@@ -30,7 +29,7 @@ function Loader(Game){
     },
     'loadingTextNode': {
       sizeMode: 'absolute',
-      w: 341, h:45,
+      w: 340, h:45,
       align: { x:0.5, y:0.2},
       position: { x: -150, y: 0},
       content: "Loading",
@@ -56,20 +55,31 @@ function Loader(Game){
       }
     }
   }
+  this.background = this.node.addChild();
+  this.background.name = 'backgroud';
+  this.background.setSizeMode('relative')
+    .setProportionalSize(1, 1)
+    .setAlign(0, 0)
+  this.background.DOMElement = new DOMElement(this.background);
+  this.background.DOMElement.setProperty(
+    'background-image','url(./images/space_new.png)')
+  .setProperty('z-index', '1')
+  .setProperty('background-size', '100% 100%')
 }
 Loader.prototype = Object.create(UI.prototype);
 Loader.prototype.constructor = Loader;
-Loader.prototype.createLoadingScreen = function functionName(scene) {
+Loader.prototype.createLoadingScreen = function() {
   this.createElement('loadingScreen');
   this.createElement('loadingText');
   this.createElement('progressBarContainer');
   this.createElement('progressBar');
   this.progressBarComponent = {
-    id:null, node:null, game:null,
+    id:null, node:null, loader:null, scene:null,
     onMount: function(node, id) {
       this.id = node.addComponent(this);
       this.node = node;
-      this.game = node._updater.Game;
+      this.loader = node._updater.Scene.Loader;
+      this.scene = node._updater.Scene;
     },
     onReceive: function (event, payload) {
       if(event == 'progressLoad'){
@@ -80,12 +90,13 @@ Loader.prototype.createLoadingScreen = function functionName(scene) {
     onUpdate: function (time){
       var percent = this.node.payload.complete;
       this.node.setAbsoluteSize(percent, 1);
-      if(percent >= 1 && this.game.LoadingScreen) {
-        this.game.emit('removeLoading');
+      if(percent >= 1 && !this.done) {
+        this.done = true;
+        this.scene.emit('removeLoading');
       }
     }
   }
-  this.progressBarNode.addComponent(this.progressBarComponent)
+  this.UIHolder.progressBarNode.addComponent(this.progressBarComponent)
   return this;
 }
 Loader.prototype.load = function(assets, callback){

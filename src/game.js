@@ -11,9 +11,12 @@ var fd = require ('./framedata.js');
 var Howler = require('./howler.min.js');
 var res = window.devicePixelRatio;
 function Game(FamousEngine){
-  this.scene = FamousEngine.Game; //this is actually the loader body/0
-  document.scene = this.scene; // actual scene is FamousEngine.Scene body
-  this.node = this.scene.addChild(); // the game becomes body/0/0
+  this.scene = FamousEngine.Scene;
+  document.scene = this.scene;
+  this.node = this.scene.Loader.background.addChild();
+  this.node.name = "GameNode";
+  var game = this.node;
+  FamousEngine.Game = game;
   var UI = require('./ui.js');
   var Storage = require('./storage.js');
   var Input = require('./input.js');
@@ -69,14 +72,15 @@ function Game(FamousEngine){
       this.sound.pos(posit);
     });
   }
-  this.UI = new UI(this.node);
+  this.UI = new UI(this);
   this.UI.startGameView();
   this.createBoxNode();
   this.enemies = new Enemy(FamousEngine);
   this.idleEnemies = [];
+  /*
   for(var b=0;b<200;b++){
       this.enemies.addEnemy(b);
-  }
+  }*/
 }
 Game.prototype.init = function() {
   this.over = false;

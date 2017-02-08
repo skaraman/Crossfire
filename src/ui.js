@@ -3,17 +3,17 @@ var Node = require('famous/core/Node');
 var Position = require('famous/components/Position');
 //var game = document.scene.getChildren()[0];
 
-function UI(node){
-  this.node = node // ? node : game.addChild();
-  this.node.name = "node";
-
+function UI(Game){
+  this.node = Game.node.addChild();
+  this.node.name = 'UINode'
+  this.game = Game;
+  this.UIHolder = this.node.addChild();
+  this.UIHolder.name = 'UIHolder';
   if(window.localStorage.high_score){
     var leng = window.localStorage.high_score.length;
   }else {
     var leng = 0;
   }
-  var gameSize = this.node.getSize();
-
   this.UI_COMPONENTS = {
     'backgroundNode': {
       w: 1,h: 1,
@@ -177,10 +177,10 @@ function UI(node){
       }
     },
     'scoreNode': {
-      w: this.gameSize[0], h: 100,
+      w: null, h: 100,
       sizeMode: 'absolute',
       align: { x: 0.5, y: 0.5},
-      position: { x: -this.gameSize[0]/2, y: -50},
+      position: { x: null, y: -50},
       content: "0",
       property: {
         'font-size':'60px',
@@ -228,8 +228,9 @@ function UI(node){
   }
 }
 UI.prototype.removeElements = function() {
-  game.removeChild(this.node)
-  this.node = game.addChild();
+  this.node.removeChild(this.UIHolder)
+  this.node = this.node.addChild();
+  this.UIHolder = this.node;
 }
 UI.prototype.startGameView = function(){
   this.removeElements();
@@ -258,26 +259,26 @@ UI.prototype.gameOverView = function() {
   this.createHowToButtonNode();
   this.createSoundButtonNode();
   this.createCreditsButtonNode();
-  game.started = false;
-  game.over = true;
-  game.idle = true;
-  game.boxSet = false;
-  game.games++;
-  delete game.previousPosition;
-  delete game.gameenemies;
+  this.game.started = false;
+  this.game.over = true;
+  this.game.idle = true;
+  this.game.boxSet = false;
+  this.game.games++;
+  delete this.game.previousPosition;
+  delete this.game.gameenemies;
   this.scoreNode.setAlign(0.5,0.3);
   this.scoreNode.DOMElement.setProperty('opacity','1.0');
   document.body.style.cursor = "auto";
-  game.emit('updateHighScore')
-  game.emit('interstitial')
-  game.emit('resetAstro')
+  this.game.emit('updateHighScore');
+  this.game.emit('interstitial');
+  this.game.emit('resetAstro');
 }
 UI.prototype.createElement = function(element){
   element = element ? element : null;
   if(element == null) throw new Error('must have element type!');
   var component = this.UI_COMPONENTS[element+"Node"];
-  var node = this.node.addChild();
-  this[element+"Node"] = node;
+  var node = this.UIHolder.addChild();
+  this.UIHolder[element+"Node"] = node;
   node.name = element+"Node";
   node.setSizeMode(component.sizeMode,component.sizeMode)
   if(component.sizeMode == 'absolute')
@@ -296,8 +297,8 @@ UI.prototype.createElement = function(element){
     node.DOMElement = new DOMElement(node);
   }
   if(component.property){
-    for(var i =0;i<component.property.length;i++){
-      node.DOMElement.setProperty(component.property[i].id,component.property[i].value)
+    for(let prop in component.property){
+      node.DOMElement.setProperty(prop, component.property[prop])
     }
   }
   if(component.content)
@@ -364,25 +365,25 @@ UI.prototype.createLeaderboardButtonNode = function() {
   this.leaderboardButtonNode.addComponent(leaderboardComponent);
 }
 UI.prototype.createSoundButtonNode = function(){
-  if(game.soundSwitch == true)
+  if(this.game.soundSwitch == true)
       this.UI_COMPONENTS['soundButtonNode'].property["background-image"] = 'url(./images/music.png)';
-  else if (game.soundSwitch == false)
+  else if (this.game.soundSwitch == false)
       this.UI_COMPONENTS['soundButtonNode'].property["background-image"] = 'url(./images/music_off.png)'
   this.soundButtonNode = this.createElement('soundButton')
   this.soundButtonNode.renew = function() {
-    if(game.soundSwitch){
-      game.soundSwitch = false;
-      game.sound.pause();
+    if(this.game.soundSwitch){
+      this.game.soundSwitch = false;
+      this.game.sound.pause();
       this.node.DOMElement.setProperty(
         'background-image','url(./images/music_off.png)');
-      if(game.storage)
+      if(this.game.storage)
         window.localStorage.sound = false;
     }else{
-      game.soundSwitch = true;
-      game.sound.play();
+      this.game.soundSwitch = true;
+      this.game.sound.play();
       this.node.DOMElement.setProperty(
         'background-image','url(./images/music.png)');
-      if(game.storage)
+      if(this.game.storage)
         window.localStorage.sound = true;
     }
   }
@@ -398,13 +399,13 @@ UI.prototype.createCreditsButtonNode = function(){
   this.creditsButtonNode.addComponent(creditsButtonNodeComponent);
 }
 UI.prototype.createHighScoreNode = function() {
-  if(!game.storage && !window.localStorage.high_score)
+  if(!this.game.storage && !window.localStorage.high_score)
     return null;
   this.highScoreNode = this.createElement('highScore');
   this.highScoreNode.renew = function() {
     this.highScoreNode.DOMElement.setContent(window.localStorage.high_score);
     var gleng = window.localStorage.high_score.length;
-    game.highScoreNode.setSizeMode('absolute','absolute')
+    this.highScoreNode.setSizeMode('absolute','absolute')
       .setAbsoluteSize(50*gleng,30)
       .setPosition(-25*gleng, 0);
   }
@@ -440,6 +441,9 @@ UI.prototype.createCreditsViewNode = function(){
   creditsXNode.addComponent(creditsXComponent);
 }
 UI.prototype.createScoreNode = function() {
+    var gameSize = this.node.getSize();
+    this.UI_COMPONENTS['scoreNode'].w = gameSize;
+    this.UI_COMPONENTS['scoreNode'].position.x = gameSize;
   this.scoreNode = this.createElement('score');
   this.scoreNode.rewnew = function update() {
     game.score += score;
