@@ -11,12 +11,11 @@ var fd = require ('./framedata.js');
 var Howler = require('./howler.min.js');
 var res = window.devicePixelRatio;
 function Game(FamousEngine){
+  FamousEngine.Game = this;
   this.scene = FamousEngine.Scene;
   document.scene = this.scene;
   this.node = this.scene.Loader.background.addChild();
   this.node.name = "GameNode";
-  var game = this.node;
-  FamousEngine.Game = game;
   var UI = require('./ui.js');
   var Storage = require('./storage.js');
   var Input = require('./input.js');
@@ -30,12 +29,15 @@ function Game(FamousEngine){
   this.games = 0;
   this.ongoing = false;
   var storage = new Storage();
-  Input.init();
+  var input = new Input(this)
+  input.init();
   this.node.onReceive = Input.dispatch;
   var OnlineFeatures = require('./onlineFeatures.js');
   var posit = 0;
   this.enemyIT = 0;
   this.boxSet = false;
+
+
   this.sound = new Howl({
     src:['./assets/starcatcher.m4a'],
     loop: true
@@ -72,6 +74,8 @@ function Game(FamousEngine){
       this.sound.pos(posit);
     });
   }
+
+
   this.UI = new UI(this);
   this.UI.startGameView();
   this.createBoxNode();
@@ -95,7 +99,7 @@ Game.prototype.init = function() {
   this.node.emit('loop',{looping:true,interrupt:true});
 }
 Game.prototype.createBoxNode = function() {
-  var boxNode = this.UI.node.addChild();
+  var boxNode = this.UI.UIHolder.addChild();
   this.boxNode = boxNode;
   boxNode.name = "boxNode";
   boxNode.framedata = fd.framedata.astro;

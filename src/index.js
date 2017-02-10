@@ -24,10 +24,12 @@ document.addEventListener("deviceready", function(){
     },
     onReceive: function (event, payload) {
       if(event == 'initGame'){
-        this.node.removeChild(FamousEngine.Scene.Loader.UIHolder);
         FamousEngine.getClock().setTimeout(function(){
-          FamousEngine.Game = new Game(FamousEngine);
-        }, 100);
+          FamousEngine.Scene.Loader.UIHolder.dismount();
+          FamousEngine.getClock().setTimeout(function(){
+            FamousEngine.Game = new Game(FamousEngine);
+          }, 0);
+        }, 1000);
       }
     }
   }

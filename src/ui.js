@@ -7,8 +7,7 @@ function UI(Game){
   this.node = Game.node.addChild();
   this.node.name = 'UINode'
   this.game = Game;
-  this.UIHolder = this.node.addChild();
-  this.UIHolder.name = 'UIHolder';
+  this.addHolder();
   if(window.localStorage.high_score){
     var leng = window.localStorage.high_score.length;
   }else {
@@ -34,7 +33,8 @@ function UI(Game){
       property: {
         'font-size' : '40px',
         'z-index' : '2',
-        'color' : 'white'
+        'color' : 'white',
+        'background': 'none'
       }
     },
     'howToButtonNode': {
@@ -91,7 +91,7 @@ function UI(Game){
     'leaderboardButtonNode': {
       w: 140,h: 60,
       sizeMode: 'absolute',
-      align: { x:0.5, y:0.5},
+      align: { x:0.5, y:0.8},
       position: { x:-85, y:-20},
       content: "Leaderboard",
       property: {
@@ -208,6 +208,7 @@ function UI(Game){
       sizeMode: 'relative',
       align: { x: 0, y: 0},
       position: { x: 0, y: 0},
+      content: '',
       property:{
         'background-color': 'black',
         'opacity': '0.5'
@@ -227,28 +228,47 @@ function UI(Game){
     }
   }
 }
+UI.prototype.addHolder = function(){
+  this.UIHolder = this.node.addChild();
+  this.UIHolder.name = 'UIHolder';
+  this.UIHolder.onDismount = function (path) {
+    var children = this.getChildren();
+    children.map(function(child){
+      child.DOMElement.remove();
+    });
+  }
+}
 UI.prototype.removeElements = function() {
-  this.node.removeChild(this.UIHolder)
-  this.node = this.node.addChild();
-  this.UIHolder = this.node;
+  var oldHolder = this.UIHolder;
+  this.addHolder();
+  oldHolder.dismount();
 }
 UI.prototype.startGameView = function(){
   this.removeElements();
-  this.createStartButtonNode();
-  this.createHowToButtonNode();
-  this.createLeaderboardButtonNode();
-  this.createCreditsButtonNode();
-  this.createSoundButtonNode();
-  this.createHighScoreNode();
+  var _this = this;
+  this.node._updater.getClock().setTimeout(function(){
+    _this.createStartButtonNode();
+    _this.createHowToButtonNode();
+    _this.createLeaderboardButtonNode();
+    _this.createCreditsButtonNode();
+    _this.createSoundButtonNode();
+    _this.createHighScoreNode();
+    _this.createGameTitleNode();
+  }, 100);
 }
 UI.prototype.howToView = function(){
   this.removeElements();
-  this.createHowToViewNode();
+  var _this = this;
+  this.node._updater.getClock().setTimeout(function(){
+    _this.createHowToViewNode();
+  }, 1);
 }
 UI.prototype.creditsView = function(){
-  //ditto
   this.removeElements();
-  this.createCreditsButtonNode();
+  var _this = this;
+  this.node._updater.getClock().setTimeout(function(){
+    _this.createCreditsViewNode();
+  }, 1);
 }
 UI.prototype.gameOverView = function() {
   this.removeElements();
@@ -307,54 +327,53 @@ UI.prototype.createElement = function(element){
 }
 UI.prototype.createComponent = function(element){
   var component = {
-    id: null,
-    node: null,
+    id: null, node: null, game: null,
     onMount: function (node) {
       this.id = node.addComponent(this);
       this.node = node;
+      this.game = node._updater.Game;
     },
     onReceive: function (event, payload){
-      if(event == element){
+      if(event == element+"Node"){
         this.node.payload = payload;
         this.node.requestUpdate(this.id);
       }
     },
     onUpdate: function() {
-      this.node.renew();
+      this.node.renew(this.game);
     }
   }
   return component;
 }
 UI.prototype.createStartButtonNode = function(){
-  var _this = this;
-  this.startButtonNode = this.createElement('startButton');
-  this.startButtonNode.renew = function(){
+  var startButtonNode = this.createElement('startButton');
+  startButtonNode.renew = function(game){
     game.started = true;
-    _this.emit('startGame',{});
+    game.node.emit('startGame',{});
   }
   var startButtonComponent = this.createComponent('startButton');
-  this.startButtonNode.addComponent(startButtonComponent);
+  startButtonNode.addComponent(startButtonComponent);
 }
 UI.prototype.createRestartButtonNode = function() {
-  this.restartButtonNode = this.createElement('restartButton');
-  this.restartButtonNode.renew = function(){
+  var restartButtonNode = this.createElement('restartButton');
+  restartButtonNode.renew = function(game){
     game.started = true;
-    _this.emit('startGame',{});
+    game.node.emit('startGame',{});
   }
   var restartButtonComponent = this.createComponent('restartButton');
-  this.restartButtonNode.addComponent(restartButtonComponent);
+  restartButtonNode.addComponent(restartButtonComponent);
 }
 UI.prototype.createHowToButtonNode = function() {
-  this.howToButtonNode = this.createElement('howToButton');
-  this.howToButtonNode.renew = function(){
-    this.howToView();
+  var howToButtonNode = this.createElement('howToButton');
+  howToButtonNode.renew = function(game){
+    game.UI.howToView();
   }
   var howToComponent = this.createComponent('howToButton');
-  this.howToButtonNode.addComponent(howToComponent);
+  howToButtonNode.addComponent(howToComponent);
 }
 UI.prototype.createLeaderboardButtonNode = function() {
-  this.leaderboardButtonNode = this.createElement('leaderboardButton');
-  this.leaderboardButtonNode.renew = function() {
+  var leaderboardButtonNode = this.createElement('leaderboardButton');
+  leaderboardButtonNode.renew = function(game) {
     if(typeof(Cocoon) != 'undefined' && Cocoon.getPlatform() == 'ios'){
       if(window.social && window.social.isLoggedIn()){
         window.social.showLeaderboard();
@@ -362,47 +381,47 @@ UI.prototype.createLeaderboardButtonNode = function() {
     }
   }
   var leaderboardComponent = this.createComponent('leaderboardButton')
-  this.leaderboardButtonNode.addComponent(leaderboardComponent);
+  leaderboardButtonNode.addComponent(leaderboardComponent);
 }
 UI.prototype.createSoundButtonNode = function(){
   if(this.game.soundSwitch == true)
       this.UI_COMPONENTS['soundButtonNode'].property["background-image"] = 'url(./images/music.png)';
   else if (this.game.soundSwitch == false)
       this.UI_COMPONENTS['soundButtonNode'].property["background-image"] = 'url(./images/music_off.png)'
-  this.soundButtonNode = this.createElement('soundButton')
-  this.soundButtonNode.renew = function() {
-    if(this.game.soundSwitch){
-      this.game.soundSwitch = false;
-      this.game.sound.pause();
-      this.node.DOMElement.setProperty(
+  var soundButtonNode = this.createElement('soundButton')
+  soundButtonNode.renew = function(game) {
+    if(game.soundSwitch){
+      game.soundSwitch = false;
+      game.sound.pause();
+      this.DOMElement.setProperty(
         'background-image','url(./images/music_off.png)');
-      if(this.game.storage)
+      if(game.storage)
         window.localStorage.sound = false;
     }else{
-      this.game.soundSwitch = true;
-      this.game.sound.play();
-      this.node.DOMElement.setProperty(
+      game.soundSwitch = true;
+      game.sound.play();
+      this.DOMElement.setProperty(
         'background-image','url(./images/music.png)');
-      if(this.game.storage)
+      if(game.storage)
         window.localStorage.sound = true;
     }
   }
   var soundButtonNodeComponent = this.createComponent('soundButton');
-  this.soundButtonNode.addComponent(soundButtonNodeComponent);
+  soundButtonNode.addComponent(soundButtonNodeComponent);
 }
 UI.prototype.createCreditsButtonNode = function(){
-  this.creditsButtonNode = this.createElement('creditsButton');
-  this.creditsButtonNode.renew = function() {
-    showCredits();
+  var creditsButtonNode = this.createElement('creditsButton');
+  creditsButtonNode.renew = function(game) {
+    game.UI.creditsView();
   }
   var creditsButtonNodeComponent = this.createComponent('creditsButton')
-  this.creditsButtonNode.addComponent(creditsButtonNodeComponent);
+  creditsButtonNode.addComponent(creditsButtonNodeComponent);
 }
 UI.prototype.createHighScoreNode = function() {
   if(!this.game.storage && !window.localStorage.high_score)
     return null;
-  this.highScoreNode = this.createElement('highScore');
-  this.highScoreNode.renew = function() {
+  var highScoreNode = this.createElement('highScore');
+  highScoreNode.renew = function(game) {
     this.highScoreNode.DOMElement.setContent(window.localStorage.high_score);
     var gleng = window.localStorage.high_score.length;
     this.highScoreNode.setSizeMode('absolute','absolute')
@@ -410,32 +429,30 @@ UI.prototype.createHighScoreNode = function() {
       .setPosition(-25*gleng, 0);
   }
   var highScoreComponent = this.createComponent('highScore');
-  this.highScoreNode.addComponent(highScoreComponent);
+  highScoreNode.addComponent(highScoreComponent);
 }
 UI.prototype.createGameTitleNode = function() {
-  this.gameTitleNode = this.createElement('gameTitle');
+  var gameTitleNode = this.createElement('gameTitle');
 }
 UI.prototype.createGameOverNode = function() {
-  this.gameOverNode = this.createElement('gameOver');
+  var gameOverNode = this.createElement('gameOver');
 }
 UI.prototype.createHowToViewNode = function(){
-  var _this = this;
-  this.shadowNode = this.createElement('shadow');
-  this.howToViewNode = this.createElement('howToView');
-  this.howToViewXNode = this.createElement('howToViewX')
-  howToViewXNode.renew = function() {
-    _this.startGameView();
+  var shadowNode = this.createElement('shadow');
+  var howToViewNode = this.createElement('howToView');
+  var howToViewXNode = this.createElement('howToViewX')
+  howToViewXNode.renew = function(game) {
+    game.UI.startGameView();
   }
   var howToViewXComponent = this.createComponent('howToViewX');
   howToViewXNode.addComponent(howToViewXComponent);
 }
 UI.prototype.createCreditsViewNode = function(){
-  var _this = this;
-  this.shadowNode = this.createElement('shadow');
-  this.creditsViewNode = this.createElement('creditsView')
-  this.creditsXNode = this.createElement('creditsX')
-  creditsXNode.renew = function() {
-    _this.startGameView();
+  var shadowNode = this.createElement('shadow');
+  var creditsViewNode = this.createElement('creditsView')
+  var creditsXNode = this.createElement('creditsX')
+  creditsXNode.renew = function(game) {
+    game.UI.startGameView();
   }
   var creditsXComponent = this.createComponent('creditsX');
   creditsXNode.addComponent(creditsXComponent);
@@ -444,20 +461,21 @@ UI.prototype.createScoreNode = function() {
     var gameSize = this.node.getSize();
     this.UI_COMPONENTS['scoreNode'].w = gameSize;
     this.UI_COMPONENTS['scoreNode'].position.x = gameSize;
-  this.scoreNode = this.createElement('score');
-  this.scoreNode.rewnew = function update() {
+  var scoreNode = this.createElement('score');
+  scoreNode.rewnew = function update(game) {
     game.score += score;
     game.scoreNode.DOMElement.setContent(game.score);
   }
   var scoreComponent = this.createComponent('score');
+  scoreNode.addComponent(scoreComponent);
 }
 UI.prototype.createLivesNode = function(){
-  this.gameLivesNode = thise.createElement('lives')
-  this.gameLivesNode.rewnew = function() {
+  var gameLivesNode = thise.createElement('lives')
+  gameLivesNode.rewnew = function(game) {
     this.manageLives(this,this.life);
   }
   var gameLivesComponent = this.createComponent('lives')
-  this.gameLivesNode.addComponent(gameLivesComponent);
+  gameLivesNode.addComponent(gameLivesComponent);
 }
 
 module.exports = UI;

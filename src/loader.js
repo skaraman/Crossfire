@@ -18,7 +18,13 @@ function Loader(loader){
       if(event == 'removeLoading') this.scene.emit('initGame');
     }
   }
-  this.node.addComponent(loaderComponent)
+  this.UIHolder.onDismount = function (path) {
+    var children = this.getChildren();
+    children.map(function(child){
+      child.DOMElement.remove();
+    });
+  }
+  this.node.addComponent(loaderComponent);
   this.UI_COMPONENTS = {
     'loadingScreenNode': {
       sizeMode: 'relative',
