@@ -1,0 +1,16 @@
+﻿<Properties StartupItem="Assembly-CSharp.csproj">
+  <MonoDevelop.Ide.Workspace ActiveConfiguration="Debug" PreferredExecutionTarget="Unity.Instance.Unity Editor" />
+  <MonoDevelop.Ide.Workbench ActiveDocument="Assets/Scripts/Achievements.cs">
+    <Files>
+      <File FileName="Assets/Scripts/Achievements.cs" Line="113" Column="3" />
+      <File FileName="Assets/Scripts/RewardNotification.cs" Line="25" Column="13" />
+      <File FileName="Assets/Scripts/RockDestroy.cs" Line="1" Column="1" />
+      <File FileName="Assets/Scripts/GameOverScore.cs" Line="33" Column="19" />
+      <File FileName="Assets/Scripts/StartGame.cs" Line="27" Column="16" />
+    </Files>
+  </MonoDevelop.Ide.Workbench>
+  <MonoDevelop.Ide.DebuggingService.Breakpoints>
+    <BreakpointStore />
+  </MonoDevelop.Ide.DebuggingService.Breakpoints>
+  <MonoDevelop.Ide.DebuggingService.PinnedWatches />
+</Properties>

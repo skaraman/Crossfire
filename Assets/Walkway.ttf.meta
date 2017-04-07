@@ -1,0 +1,21 @@
+fileFormatVersion: 2
+guid: 7d32f603ee45b486a9101f8ce6ac530d
+timeCreated: 1487098685
+licenseType: Free
+TrueTypeFontImporter:
+  serializedVersion: 4
+  fontSize: 16
+  forceTextureCase: -2
+  characterSpacing: 0
+  characterPadding: 1
+  includeFontData: 1
+  fontName: Walkway SemiBold
+  fontNames:
+  - Walkway SemiBold
+  fallbackFontReferences: []
+  customCharacters: 
+  fontRenderingMode: 0
+  ascentCalculationMode: 1
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

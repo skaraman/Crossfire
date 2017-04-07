@@ -1,0 +1,24 @@
+fileFormatVersion: 2
+guid: e85c22735955e447f804fcace18349f5
+timeCreated: 1489641036
+licenseType: Free
+MonoImporter:
+  serializedVersion: 2
+  defaultReferences:
+  - yellowStar: {instanceID: 0}
+  - blueStar: {instanceID: 0}
+  - greenStar: {instanceID: 0}
+  - orangeStar: {instanceID: 0}
+  - redStar: {instanceID: 0}
+  - pinkStar: {instanceID: 0}
+  - purpleStar: {instanceID: 0}
+  - greyStar: {instanceID: 0}
+  - blackStar: {instanceID: 0}
+  - rock1: {instanceID: 0}
+  - rock2: {instanceID: 0}
+  - score: {instanceID: 0}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
